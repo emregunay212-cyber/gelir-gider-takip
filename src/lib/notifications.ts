@@ -16,12 +16,33 @@ export function getNotificationPermission(): NotificationPermission {
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!isNotificationSupported()) return 'denied';
   if (Notification.permission === 'granted') return 'granted';
-  if (Notification.permission === 'denied') return 'denied';
-  try {
-    return await Notification.requestPermission();
-  } catch {
-    return 'denied';
-  }
+
+  // Samsung Internet ve bazı eski tarayıcılar callback-style API kullanır.
+  // Modern Chromium Promise döner. İkisini de destekle.
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: NotificationPermission) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    try {
+      const maybePromise = Notification.requestPermission((legacyResult) => {
+        finish(legacyResult);
+      });
+      // Modern tarayıcılarda Promise dönerse onu da bekle
+      if (maybePromise && typeof maybePromise.then === 'function') {
+        maybePromise
+          .then((result) => finish(result))
+          .catch(() => finish('denied'));
+      }
+      // Hiçbir callback / promise tetiklenmezse 8 sn sonra fallback
+      setTimeout(() => finish(Notification.permission), 8000);
+    } catch {
+      finish('denied');
+    }
+  });
 }
 
 interface ShowOptions {

@@ -59,23 +59,60 @@ export default function Ayarlar() {
   }, []);
 
   async function handleEnableNotifications() {
-    const result = await requestNotificationPermission();
-    setNotifPermission(result);
-    if (result === 'granted') {
-      toast.success('Bildirimler açıldı 🔔', {
-        description: 'Yeni sürüm geldiğinde haber vereceğim.',
+    if (!isNotificationSupported()) {
+      toast.error('Tarayıcı bildirimi desteklemiyor');
+      return;
+    }
+
+    const before = getNotificationPermission();
+    if (before === 'denied') {
+      toast.error('Bildirim izni engelli', {
+        description:
+          'Tarayıcının site ayarlarından (🔒 ikonu → Bildirimler) açman gerek.',
+        duration: 10000,
       });
-      // Test bildirimi
-      void showNotification({
-        title: '🔔 Bildirimler aktif',
-        body: 'Aile Bütçe artık seninle iletişim kurabilir.',
-        tag: 'notification-test',
-        requireInteraction: false,
-      });
-    } else if (result === 'denied') {
-      toast.error('İzin reddedildi', {
-        description: 'Tarayıcı ayarlarından sonradan açabilirsin.',
-      });
+      return;
+    }
+
+    toast.info('İzin penceresi açılıyor...', {
+      description: 'Görmüyorsan tarayıcının üst kısmına bak.',
+      duration: 4000,
+    });
+
+    try {
+      const result = await requestNotificationPermission();
+      setNotifPermission(result);
+
+      if (result === 'granted') {
+        toast.success('Bildirimler açıldı 🔔');
+        void showNotification({
+          title: '🔔 Bildirimler aktif',
+          body: 'Aile Bütçe artık seninle iletişim kurabilir.',
+          tag: 'notification-test',
+          requireInteraction: false,
+        });
+        // Bildirim gelip gelmediğini kullanıcı doğrulasın
+        window.setTimeout(() => {
+          toast.info('Test bildirimi yollandı 📲', {
+            description:
+              'Bildirim çubuğuna geldi mi? Gelmediyse: Samsung Internet için önce "Ana Ekrana Ekle" yapman, sistem ayarlarından bu site için bildirim izni vermen gerekebilir.',
+            duration: 15000,
+          });
+        }, 1200);
+      } else if (result === 'denied') {
+        toast.error('İzin verilmedi', {
+          description:
+            'Tekrar denemek için: 🔒 ikonu → Site ayarları → Bildirimler → İzin Ver.',
+          duration: 10000,
+        });
+      } else {
+        toast.warning('İzin penceresi kapatıldı', {
+          description: 'Beklenmedik bir durum oldu. Tekrar dener misin?',
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Bilinmeyen hata';
+      toast.error('Hata: ' + message);
     }
   }
 
@@ -166,6 +203,31 @@ export default function Ayarlar() {
                 <Bell className="size-4" />
                 Bildirimleri Aç
               </Button>
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer hover:text-foreground">
+                  Samsung Internet kullanıyorsan oku
+                </summary>
+                <div className="mt-2 space-y-1 pl-2">
+                  <p>
+                    Samsung Internet'te bildirim için önce siteyi{' '}
+                    <strong>Ana Ekrana Ekle</strong> ile PWA olarak yüklemen
+                    gerekebilir:
+                  </p>
+                  <ol className="ml-4 list-decimal space-y-0.5">
+                    <li>
+                      Tarayıcının alt menüsünden ⋮ → "Sayfayı ekle" → "Ana
+                      ekran"
+                    </li>
+                    <li>Açılan PWA ikonuyla siteyi tekrar aç</li>
+                    <li>"Bildirimleri Aç" butonuna tekrar bas</li>
+                    <li>Sistem dialogunda "İzin Ver"</li>
+                  </ol>
+                  <p className="pt-1">
+                    Çalışmazsa: <strong>Samsung Internet → Ayarlar → Site
+                    izinleri → Bildirimler</strong> üzerinden manuel açabilirsin.
+                  </p>
+                </div>
+              </details>
             </div>
           )}
         </SettingsCard>
