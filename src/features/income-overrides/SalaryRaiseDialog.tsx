@@ -63,7 +63,7 @@ export function SalaryRaiseDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-sm gap-4 p-5">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Maaş Zammı Planla</DialogTitle>
           <DialogDescription>

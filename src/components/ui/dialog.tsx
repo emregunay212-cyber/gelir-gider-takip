@@ -51,11 +51,19 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // MOBILE: bottom sheet — alttan slide-up, full width, üst köşeler yuvarlak
+          "fixed inset-x-0 bottom-0 z-50 flex max-h-[92svh] w-full flex-col gap-4 overflow-y-auto rounded-t-2xl bg-popover p-4 pb-[max(env(safe-area-inset-bottom),1rem)] text-sm text-popover-foreground ring-1 ring-foreground/10 duration-200 outline-none data-open:animate-in data-open:slide-in-from-bottom-4 data-closed:animate-out data-closed:slide-out-to-bottom-4",
+          // DESKTOP (sm+): center modal
+          "sm:inset-x-auto sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:max-w-md sm:max-h-[85vh] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:pb-4 sm:data-open:slide-in-from-bottom-0 sm:data-open:zoom-in-95 sm:data-closed:slide-out-to-bottom-0 sm:data-closed:zoom-out-95",
           className
         )}
         {...props}
       >
+        {/* iOS-style drag handle (sadece mobile) */}
+        <div
+          aria-hidden
+          className="sticky top-0 mx-auto -mt-2 mb-1 h-1 w-10 shrink-0 rounded-full bg-border sm:hidden"
+        />
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close

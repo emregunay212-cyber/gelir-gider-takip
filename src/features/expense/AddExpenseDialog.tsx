@@ -85,7 +85,7 @@ export function AddExpenseDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md gap-4 p-5">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Harcama Ekle</DialogTitle>
           <DialogDescription>
@@ -129,27 +129,27 @@ export function AddExpenseDialog({ open, onClose }: Props) {
             />
           </div>
 
-          <Field label="Kategori">
-            <div className="grid grid-cols-3 gap-2">
-              {CATEGORIES.map((cat) => (
-                <button
-                  type="button"
-                  key={cat.value}
-                  onClick={() => setCategory(cat.value)}
-                  className={`flex flex-col items-center gap-0.5 rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors ${
-                    category === cat.value
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-input text-foreground hover:bg-accent'
-                  }`}
-                >
-                  <span className="text-lg" aria-hidden>
-                    {cat.emoji}
-                  </span>
-                  <span>{cat.label}</span>
-                </button>
-              ))}
-            </div>
-          </Field>
+          <div className="space-y-1.5">
+            <Label>Kategori</Label>
+            <Select
+              value={category}
+              onValueChange={(v) => v && setCategory(v as ExpenseCategory)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    <span className="mr-2 text-base" aria-hidden>
+                      {cat.emoji}
+                    </span>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="description">Açıklama (opsiyonel)</Label>

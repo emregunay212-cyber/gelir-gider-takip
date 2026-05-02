@@ -98,7 +98,7 @@ export function CashEntryDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-sm gap-4 p-5">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{DIRECTION_LABEL[direction]}</DialogTitle>
           <DialogDescription>{DIRECTION_HELP[direction]}</DialogDescription>

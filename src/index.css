@@ -78,6 +78,8 @@ body {
   padding: 0;
   min-height: 100svh;
   background: var(--color-bg);
+  /* Custom pull-to-refresh için browser native bounce/refresh kapatılır */
+  overscroll-behavior-y: none;
 }
 
 #root {

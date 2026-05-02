@@ -37,7 +37,7 @@ export function EditBillDialog({ billName, open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-sm gap-4 p-5">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{billName}</DialogTitle>
           <DialogDescription>

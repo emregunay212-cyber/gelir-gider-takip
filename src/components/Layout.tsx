@@ -1,7 +1,9 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { toast } from 'sonner';
 import BottomNav from './BottomNav';
+import { PullToRefresh } from './PullToRefresh';
 import { Badge } from '@/components/ui/badge';
 import { useCurrentUser } from '@/features/identity/CurrentUserProvider';
 import { useOnlineStatus } from '@/features/connection/useOnlineStatus';
@@ -63,17 +65,25 @@ export default function Layout() {
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-4 pb-28">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+        <PullToRefresh
+          onRefresh={() => {
+            toast.success('Güncel ✓', {
+              description: 'Veriler her zaman canlı senkron',
+            });
+          }}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
+        </PullToRefresh>
       </main>
 
       <BottomNav />
