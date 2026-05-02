@@ -1,10 +1,17 @@
-import { useState, type ReactNode } from 'react';
-import { RotateCcw, Download, FileSpreadsheet } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { RotateCcw, Download, FileSpreadsheet, Bell, BellOff } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SEED_HOUSEHOLD } from '@/db/seed';
 import { formatTRY } from '@/lib/format';
 import { useDataExport } from '@/features/export/useDataExport';
+import {
+  getNotificationPermission,
+  isNotificationSupported,
+  requestNotificationPermission,
+  showNotification,
+} from '@/lib/notifications';
 
 const STORAGE_KEYS_TO_CLEAR = [
   'salary_receipts_v1',
@@ -37,6 +44,40 @@ function clearAllLocalState(): void {
 export default function Ayarlar() {
   const [confirming, setConfirming] = useState(false);
   const { downloadJson, downloadExpensesCsv } = useDataExport();
+
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
+    () => getNotificationPermission(),
+  );
+  const notifSupported = isNotificationSupported();
+
+  useEffect(() => {
+    // Tarayıcı dışında değişiklikler için periyodik kontrol
+    const interval = window.setInterval(() => {
+      setNotifPermission(getNotificationPermission());
+    }, 2000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  async function handleEnableNotifications() {
+    const result = await requestNotificationPermission();
+    setNotifPermission(result);
+    if (result === 'granted') {
+      toast.success('Bildirimler açıldı 🔔', {
+        description: 'Yeni sürüm geldiğinde haber vereceğim.',
+      });
+      // Test bildirimi
+      void showNotification({
+        title: '🔔 Bildirimler aktif',
+        body: 'Aile Bütçe artık seninle iletişim kurabilir.',
+        tag: 'notification-test',
+        requireInteraction: false,
+      });
+    } else if (result === 'denied') {
+      toast.error('İzin reddedildi', {
+        description: 'Tarayıcı ayarlarından sonradan açabilirsin.',
+      });
+    }
+  }
 
   function handleReset() {
     if (!confirming) {
@@ -77,6 +118,56 @@ export default function Ayarlar() {
             Şu an: <span className="font-medium text-foreground">Koyu (Dark)</span> ·
             açık tema seçimi sonraki fazda
           </p>
+        </SettingsCard>
+
+        <SettingsCard title="Bildirimler">
+          {!notifSupported ? (
+            <p className="text-sm text-muted-foreground">
+              Bu tarayıcı bildirim özelliğini desteklemiyor.
+            </p>
+          ) : notifPermission === 'granted' ? (
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-full bg-[var(--color-success)]/15 text-[var(--color-success)]">
+                <Bell className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Bildirimler açık</p>
+                <p className="text-xs text-muted-foreground">
+                  Yeni sürüm geldiğinde telefon bildirimi alacaksın.
+                </p>
+              </div>
+            </div>
+          ) : notifPermission === 'denied' ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-full bg-[var(--color-danger)]/15 text-[var(--color-danger)]">
+                  <BellOff className="size-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">Bildirimler engelli</p>
+                  <p className="text-xs text-muted-foreground">
+                    Tarayıcı ayarlarından izin vermen gerek (🔒 ikonu → Site
+                    ayarları → Bildirimler).
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Yeni sürüm geldiğinde sana haber vereyim mi? Telefon ekranında
+                bildirim olarak gelir, tek tıkla güncellenir.
+              </p>
+              <Button
+                type="button"
+                onClick={handleEnableNotifications}
+                className="w-full"
+              >
+                <Bell className="size-4" />
+                Bildirimleri Aç
+              </Button>
+            </div>
+          )}
         </SettingsCard>
 
         <SettingsCard title="Yedekleme & Dışa Aktarma">

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { toast } from 'sonner';
+import { showNotification } from '@/lib/notifications';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -26,6 +27,7 @@ export function PWAUpdater() {
   useEffect(() => {
     if (!needRefresh) return;
 
+    // Sonner toast (uygulama açık iken)
     const id = toast('🔔 Yeni sürüm hazır', {
       description: 'En son özellikler için tek tıkla güncelle.',
       duration: Infinity,
@@ -36,6 +38,17 @@ export function PWAUpdater() {
         },
       },
       onDismiss: () => setNeedRefresh(false),
+    });
+
+    // Telefon bildirimi (izin verildiyse) — telefon kapalı olsa bile gelir
+    void showNotification({
+      title: '🔔 Yeni Sürüm Hazır',
+      body: 'Aile Bütçe güncellendi. Tıkla, hemen güncelle.',
+      tag: 'app-update',
+      requireInteraction: true,
+      onClick: () => {
+        updateServiceWorker(true);
+      },
     });
 
     return () => {

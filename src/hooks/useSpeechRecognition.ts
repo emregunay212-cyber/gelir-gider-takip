@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface Options {
   lang?: string;
@@ -10,7 +10,7 @@ interface Options {
 interface State {
   supported: boolean;
   listening: boolean;
-  /** Tüm session'ın kesinleşmiş (final) metni — duplicate-safe. */
+  /** Tüm session'ların kesinleşmiş (final) metni — duplicate-safe. */
   finalText: string;
   /** Şu an konuşulan ama henüz kesinleşmeyen interim metin. */
   interimText: string;
@@ -20,10 +20,20 @@ interface State {
 interface Controls {
   start: () => void;
   stop: () => void;
-  /** finalText + interimText'i sıfırlar; recognition state'i değiştirmez. */
+  /** finalText + interimText'i sıfırlar. */
   reset: () => void;
 }
 
+/**
+ * Web Speech API wrapper'ı.
+ *
+ * "Devam" senaryosu için iki kademeli buffer:
+ *  - committedText: stop edilmiş önceki session'ların kesinleşmiş metni
+ *  - currentSegments: aktif session'da gelen segmentler (kümülatif update'e dayanıklı)
+ *  - finalText = committedText + currentSegments birleşimi
+ *
+ * Yeni `start()` çağrılırsa current → committed'a taşınır, yeni session sıfırdan başlar.
+ */
 export function useSpeechRecognition(options: Options = {}): State & Controls {
   const { lang = 'tr-TR', continuous = false, onError } = options;
 
@@ -35,9 +45,15 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [listening, setListening] = useState(false);
-  const [finalText, setFinalText] = useState('');
+  const [committedText, setCommittedText] = useState('');
+  const [currentSegments, setCurrentSegments] = useState<string[]>([]);
   const [interimText, setInterimText] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const finalText = useMemo(() => {
+    const current = currentSegments.join(' ').trim();
+    return [committedText, current].filter(Boolean).join(' ').trim();
+  }, [committedText, currentSegments]);
 
   const stop = useCallback(() => {
     try {
@@ -48,7 +64,8 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
   }, []);
 
   const reset = useCallback(() => {
-    setFinalText('');
+    setCommittedText('');
+    setCurrentSegments([]);
     setInterimText('');
     setError(null);
   }, []);
@@ -62,7 +79,15 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
 
     setError(null);
 
-    // Önceki recognition varsa kapat — race condition'ı önler
+    // Önceki session'da current segmentler varsa committed'a taşı
+    setCommittedText((prev) => {
+      const current = currentSegments.join(' ').trim();
+      return [prev, current].filter(Boolean).join(' ').trim();
+    });
+    setCurrentSegments([]);
+    setInterimText('');
+
+    // Önceki recognition objesini abort et
     try {
       recognitionRef.current?.abort();
     } catch {
@@ -83,11 +108,9 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
       onError?.(event.error);
     };
     rec.onresult = (event) => {
-      // Bazı tarayıcılar (Mobile Chrome Türkçe) continuous modda her segment
-      // güncellendikçe AYNI segmenti tekrar tekrar isFinal olarak yollar
-      // ("215" → "215 lira" → "215 lira çiğ köfte" → ...).
-      // Bu yüzden segmentleri akıllıca birleştiriyoruz: yeni segment öncekini
-      // prefix olarak içeriyorsa replace, yoksa yeni segment olarak ekle.
+      // Speech API kümülatif update yapıyor (özellikle Mobile Chrome Türkçe).
+      // Smart accumulate: yeni segment öncekini prefix olarak içeriyorsa
+      // daha uzun olanı tut, bağımsız yeni segment ise listeye ekle.
       const segments: string[] = [];
       let lastInterim = '';
 
@@ -102,11 +125,9 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
             prev &&
             (text.startsWith(prev) || prev.startsWith(text))
           ) {
-            // Overlap var — daha uzun olanı tut (kümülatif güncelleme)
             segments[segments.length - 1] =
               text.length >= prev.length ? text : prev;
           } else if (prev !== text) {
-            // Bağımsız yeni segment
             segments.push(text);
           }
         } else {
@@ -114,7 +135,7 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
         }
       }
 
-      setFinalText(segments.join(' '));
+      setCurrentSegments(segments);
       setInterimText(lastInterim);
     };
 
@@ -127,6 +148,7 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
       onError?.(message);
       setListening(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Recognition, lang, continuous, onError]);
 
   useEffect(() => {

@@ -10,13 +10,15 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'notification-handler.js'],
       workbox: {
         // Yeni service worker yüklenir yüklenmez devralır,
         // mevcut tab'lar agresif şekilde yeni sürüme geçer.
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+        // Custom SW kodu — notification click handler
+        importScripts: ['/notification-handler.js'],
       },
       manifest: {
         name: 'Aile Bütçe',
