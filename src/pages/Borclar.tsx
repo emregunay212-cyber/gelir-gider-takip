@@ -1,10 +1,13 @@
 import { Check } from 'lucide-react';
+import { motion } from 'motion/react';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatTRY, monthKey, monthLabel } from '@/lib/format';
 import { SEED_DEBTS, type SeedDebt } from '@/db/seed';
 import { useDebtPayment } from '@/features/debt/DebtPaymentProvider';
+import { celebrateSmall, celebrateSuccess } from '@/lib/confetti';
 
 const OWNER_LABEL: Record<'emre' | 'sila', string> = {
   emre: 'Emre',
@@ -79,17 +82,41 @@ export default function Borclar() {
       </div>
 
       <ul className="space-y-2">
-        {active.map((debt) => (
-          <DebtCard
+        {active.map((debt, index) => (
+          <motion.div
             key={debt.name}
-            debt={debt}
-            paid={isPaid(debt.name, currentMonth)}
-            remaining={remainingInstallments(debt.name)}
-            principal={effectivePrincipal(debt.name)}
-            onMark={() => markPaid(debt.name, currentMonth)}
-            onUnmark={() => unmarkPaid(debt.name, currentMonth)}
-            monthLabel={monthLabelText}
-          />
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{
+              duration: 0.3,
+              delay: index * 0.04,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+          >
+            <DebtCard
+              debt={debt}
+              paid={isPaid(debt.name, currentMonth)}
+              remaining={remainingInstallments(debt.name)}
+              principal={effectivePrincipal(debt.name)}
+              onMark={() => {
+                markPaid(debt.name, currentMonth);
+                const willClose =
+                  (remainingInstallments(debt.name) ?? Infinity) <= 1;
+                toast.success(
+                  willClose
+                    ? `${debt.name} kapatıldı! 🎉`
+                    : `${debt.name} ${monthLabelText} ödendi`,
+                );
+                if (willClose) {
+                  setTimeout(() => celebrateSuccess(), 100);
+                } else {
+                  celebrateSmall();
+                }
+              }}
+              onUnmark={() => unmarkPaid(debt.name, currentMonth)}
+              monthLabel={monthLabelText}
+            />
+          </motion.div>
         ))}
       </ul>
 

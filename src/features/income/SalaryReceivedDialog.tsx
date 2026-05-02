@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSalary } from './SalaryProvider';
 import { monthKey, formatTRY } from '@/lib/format';
+import { celebrateSuccess } from '@/lib/confetti';
 
 interface Props {
   incomeName: string;
@@ -49,6 +50,8 @@ export function SalaryReceivedDialog({
       description: `Kasaya eklendi · ${accountName}`,
     });
     onClose();
+    // Maaş yatma kutlaması — küçük bir konfeti yağmuru 🎉
+    setTimeout(() => celebrateSuccess(), 100);
   }
 
   return (

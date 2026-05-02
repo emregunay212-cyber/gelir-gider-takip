@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check, Pencil } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { SEED_RECURRING_EXPENSES } from '@/db/seed';
 import type { RecurringExpenseCategory } from '@/types';
 import { useBills } from '@/features/bills/BillsProvider';
 import { EditBillDialog } from '@/features/bills/EditBillDialog';
+import { celebrateSmall } from '@/lib/confetti';
 
 const CATEGORY_LABEL: Record<RecurringExpenseCategory, string> = {
   electricity: 'Elektrik',
@@ -86,14 +88,24 @@ export default function Faturalar() {
       )}
 
       <ul className="space-y-2">
-        {SEED_RECURRING_EXPENSES.map((bill) => {
+        {SEED_RECURRING_EXPENSES.map((bill, index) => {
           const amount = getAmount(bill.name);
           const paid = isPaid(bill.name, currentMonth);
           const cardClass = paid
             ? 'border-[var(--color-success)]/30 bg-[var(--color-success)]/5'
             : '';
           return (
-            <Card key={bill.name} className={cardClass}>
+            <motion.div
+              key={bill.name}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{
+                duration: 0.3,
+                delay: index * 0.04,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+            >
+            <Card className={cardClass}>
               <CardContent className="p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-3">
@@ -144,7 +156,10 @@ export default function Faturalar() {
                     type="button"
                     size="sm"
                     variant={paid ? 'secondary' : 'outline'}
-                    onClick={() => togglePaid(bill.name, currentMonth)}
+                    onClick={() => {
+                      togglePaid(bill.name, currentMonth);
+                      if (!paid) celebrateSmall();
+                    }}
                     className={`mt-2 w-full ${
                       paid
                         ? 'bg-[var(--color-success)]/15 text-[var(--color-success)] hover:bg-[var(--color-success)]/25'
@@ -159,6 +174,7 @@ export default function Faturalar() {
                 )}
               </CardContent>
             </Card>
+            </motion.div>
           );
         })}
       </ul>

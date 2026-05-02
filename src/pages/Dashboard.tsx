@@ -1,5 +1,7 @@
+import { motion } from 'motion/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { CountUp } from '@/components/AnimatedNumber';
 import { formatTRY, monthKey } from '@/lib/format';
 import {
   SEED_ACCOUNTS,
@@ -85,86 +87,106 @@ export default function Dashboard() {
 
   const thisMonthSpent = expenseMonthly(monthKey());
 
+  const cardMotion = {
+    initial: { opacity: 0, y: 16 },
+    animate: { opacity: 1, y: 0 },
+  };
+  const cardTransition = (i: number) => ({
+    duration: 0.45,
+    delay: 0.05 + i * 0.06,
+    ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
+  });
+
   return (
     <section className="space-y-4">
-      {/* 1. EN KRİTİK: Bugünün limiti + Harcama Ekle butonu */}
+      {/* 1. EN KRİTİK: Bugünün limiti + Harcama Ekle butonu (kendi animasyonu var) */}
       <TodaySpendingCard />
 
       {/* 2. Bugünkü harcamalar listesi */}
-      <TodayExpensesList />
+      <motion.div {...cardMotion} transition={cardTransition(1)}>
+        <TodayExpensesList />
+      </motion.div>
 
       {/* 3. Kasa (toplam param) */}
-      <Card>
-        <CardContent className="p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Kasa (toplam param)
-          </p>
-          <p className="mt-1 text-3xl font-bold tabular-nums">
-            {formatTRY(totalCash)}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Tüm banka hesapları + evdeki nakit
-          </p>
-        </CardContent>
-      </Card>
+      <motion.div {...cardMotion} transition={cardTransition(2)}>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Kasa (toplam param)
+            </p>
+            <p className="mt-1 text-3xl font-bold tabular-nums">
+              <CountUp value={totalCash} format={(n) => formatTRY(n)} />
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Tüm banka hesapları + evdeki nakit
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* 4. Hızlı kasa hareketi */}
-      <QuickCashButtons />
+      <motion.div {...cardMotion} transition={cardTransition(3)}>
+        <QuickCashButtons />
+      </motion.div>
 
       {/* 5. Yaklaşan gelir (maaşlar) */}
-      <UpcomingIncomeCard />
+      <motion.div {...cardMotion} transition={cardTransition(4)}>
+        <UpcomingIncomeCard />
+      </motion.div>
 
       {/* 6. Aylık özet stat'ları */}
-      <div className="grid grid-cols-2 gap-3">
+      <motion.div
+        {...cardMotion}
+        transition={cardTransition(5)}
+        className="grid grid-cols-2 gap-3"
+      >
         <Stat
           label="Bu Ay Harcanan"
-          value={formatTRY(thisMonthSpent)}
+          value={thisMonthSpent}
           tone="danger"
         />
-        <Stat label="Bu Ayın Tasarrufu" value={formatTRY(0)} muted />
-        <Stat
-          label="Aylık Borç"
-          value={formatTRY(monthlyDebts)}
-          tone="danger"
-        />
+        <Stat label="Bu Ayın Tasarrufu" value={0} muted />
+        <Stat label="Aylık Borç" value={monthlyDebts} tone="danger" />
         <Stat
           label="Aylık Gelir (ort.)"
-          value={formatTRY(monthlyIncome)}
+          value={monthlyIncome}
           tone="success"
         />
-      </div>
+      </motion.div>
 
       {/* 7. Aylık projeksiyon */}
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Aylık Projeksiyon (Ortalama)
-          </p>
-          <div className="mt-3 space-y-2 text-sm">
-            <Row label="Gelir" value={monthlyIncome} positive />
-            <Row label="Borç ödemeleri" value={-monthlyDebts} />
-            <Row label="Faturalar" value={-monthlyBills} />
-            <Row
-              label={`Günlük harcama (${formatTRY(dailyLimit)} × 30)`}
-              value={-monthlyDailyBudget}
-            />
-            <Separator className="my-2" />
-            <Row
-              label="Beklenen aylık tasarruf"
-              value={projectedSurplus}
-              positive={projectedSurplus >= 0}
-              bold
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <motion.div {...cardMotion} transition={cardTransition(6)}>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Aylık Projeksiyon (Ortalama)
+            </p>
+            <div className="mt-3 space-y-2 text-sm">
+              <Row label="Gelir" value={monthlyIncome} positive />
+              <Row label="Borç ödemeleri" value={-monthlyDebts} />
+              <Row label="Faturalar" value={-monthlyBills} />
+              <Row
+                label={`Günlük harcama (${formatTRY(dailyLimit)} × 30)`}
+                value={-monthlyDailyBudget}
+              />
+              <Separator className="my-2" />
+              <Row
+                label="Beklenen aylık tasarruf"
+                value={projectedSurplus}
+                positive={projectedSurplus >= 0}
+                bold
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
     </section>
   );
 }
 
 interface StatProps {
   label: string;
-  value: string;
+  value: number;
   muted?: boolean;
   tone?: 'success' | 'danger';
 }
@@ -180,16 +202,21 @@ function Stat({ label, value, muted, tone }: StatProps) {
           : 'text-foreground';
 
   return (
-    <Card>
-      <CardContent className="p-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </p>
-        <p className={`mt-1 text-lg font-semibold tabular-nums ${toneClass}`}>
-          {value}
-        </p>
-      </CardContent>
-    </Card>
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+    >
+      <Card>
+        <CardContent className="p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+          <p className={`mt-1 text-lg font-semibold tabular-nums ${toneClass}`}>
+            <CountUp value={value} format={(n) => formatTRY(n)} />
+          </p>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
