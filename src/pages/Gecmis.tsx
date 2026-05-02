@@ -63,7 +63,7 @@ interface DayGroup {
 }
 
 export default function Gecmis() {
-  const { entries, monthlyTotal, removeExpense } = useExpense();
+  const { entries, monthlyTotal, monthlySavings, removeExpense } = useExpense();
   const [month, setMonth] = useState<string>(() => monthKey());
 
   const inMonth = useMemo(
@@ -72,9 +72,21 @@ export default function Gecmis() {
   );
 
   const total = monthlyTotal(month);
-  const daysInMonth = getDaysInMonth(month);
-  const monthlyBudget = SEED_HOUSEHOLD.defaultDailyLimit * daysInMonth;
-  const overBudget = total - monthlyBudget;
+  const dailyLimit = SEED_HOUSEHOLD.defaultDailyLimit;
+  const totalDaysInMonth = getDaysInMonth(month);
+  const currentMonth = monthKey();
+
+  // Bu ay seçiliyse geçen gün sayısına göre, geçmiş ay ise tüm ay × limit
+  const effectiveDays =
+    month === currentMonth
+      ? new Date().getDate()
+      : month < currentMonth
+        ? totalDaysInMonth
+        : 0;
+  const monthlyBudget = dailyLimit * effectiveDays;
+  // monthlySavings = monthlyBudget − total → pozitif ise tasarruf, negatif aşım
+  const savings = monthlySavings(month, dailyLimit);
+  const overBudget = -savings;
 
   const categoryStats: CategoryStat[] = useMemo(() => {
     const byCat = new Map<ExpenseCategory, { amount: number; count: number }>();
@@ -148,7 +160,7 @@ export default function Gecmis() {
         </CardContent>
       </Card>
 
-      {/* Aylık özet */}
+      {/* Aylık özet — toplam harcama + tasarruf */}
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 p-5 text-white shadow-lg ring-1 ring-white/10">
         <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
           Bu Ay Toplam Harcama
@@ -157,28 +169,73 @@ export default function Gecmis() {
           {formatTRY(total)}
         </p>
         <p className="mt-1 text-xs opacity-80">
-          {formatTRY(monthlyBudget)} aylık bütçe ·{' '}
-          {overBudget > 0 ? (
-            <span className="font-semibold text-red-100">
-              +{formatTRY(overBudget)} aşım
-            </span>
-          ) : (
-            <span className="font-semibold text-emerald-100">
-              {formatTRY(-overBudget)} altında
-            </span>
+          {effectiveDays} gün × {formatTRY(dailyLimit)} ={' '}
+          {formatTRY(monthlyBudget)}
+          {effectiveDays > 0 && (
+            <>
+              {' · '}
+              {overBudget > 0 ? (
+                <span className="font-semibold text-red-100">
+                  +{formatTRY(overBudget)} aşım
+                </span>
+              ) : (
+                <span className="font-semibold text-emerald-100">
+                  {formatTRY(savings)} altında
+                </span>
+              )}
+            </>
           )}
         </p>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20">
-          <div
-            className={`h-full transition-all ${
-              overBudget > 0 ? 'bg-red-300' : 'bg-white/90'
-            }`}
-            style={{
-              width: `${Math.min(100, (total / monthlyBudget) * 100)}%`,
-            }}
-          />
-        </div>
+        {effectiveDays > 0 && (
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20">
+            <div
+              className={`h-full transition-all ${
+                overBudget > 0 ? 'bg-red-300' : 'bg-white/90'
+              }`}
+              style={{
+                width: `${Math.min(100, (total / Math.max(monthlyBudget, 1)) * 100)}%`,
+              }}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Tasarruf detay kartı — günlük kırılım */}
+      {effectiveDays > 0 && (
+        <Card
+          className={
+            savings >= 0
+              ? 'border-[var(--color-success)]/30 bg-[var(--color-success)]/5'
+              : 'border-[var(--color-danger)]/30 bg-[var(--color-danger)]/5'
+          }
+        >
+          <CardContent className="p-4">
+            <p
+              className={`text-[11px] font-semibold uppercase tracking-wide ${
+                savings >= 0
+                  ? 'text-[var(--color-success)]'
+                  : 'text-[var(--color-danger)]'
+              }`}
+            >
+              {savings >= 0 ? 'Bu Ayın Tasarrufu' : 'Bu Ayın Aşımı'}
+            </p>
+            <p
+              className={`mt-1 text-2xl font-bold tabular-nums ${
+                savings >= 0
+                  ? 'text-[var(--color-success)]'
+                  : 'text-[var(--color-danger)]'
+              }`}
+            >
+              {savings >= 0 ? '+' : ''}
+              {formatTRY(savings)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {effectiveDays} gün · günlük {formatTRY(dailyLimit)} limit ·
+              ortalama {formatTRY(total / effectiveDays)} harcandı
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {(spenderTotals.emre > 0 || spenderTotals.sila > 0) && (
         <Card>

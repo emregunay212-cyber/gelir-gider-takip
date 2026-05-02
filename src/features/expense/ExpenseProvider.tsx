@@ -33,6 +33,12 @@ interface ExpenseContextValue {
   totalForDate: (date: string) => number;
   totalDelta: () => number;
   monthlyTotal: (month: string) => number;
+  /**
+   * Aylık net tasarruf:
+   * (geçen gün sayısı × dailyLimit) − bu ayın toplam harcaması.
+   * Pozitif = limit altında kaldık (tasarruf), negatif = aşım var.
+   */
+  monthlySavings: (month: string, dailyLimit: number) => number;
   balanceDelta: (accountName: string) => number;
 }
 
@@ -188,6 +194,31 @@ export function ExpenseProvider({ children }: ProviderProps) {
         items
           .filter((e) => e.date.startsWith(month))
           .reduce((s, e) => s + e.amount, 0),
+      monthlySavings: (month, dailyLimit) => {
+        const [yearStr, monthNumStr] = month.split('-');
+        const year = Number(yearStr);
+        const monthNum = Number(monthNumStr);
+        const todayMonth = today.slice(0, 7);
+
+        let daysCount: number;
+        if (month === todayMonth) {
+          // Mevcut ay: bugün dahil geçen gün sayısı
+          daysCount = Number(today.slice(8, 10));
+        } else if (month < todayMonth) {
+          // Geçmiş ay: tüm gün sayısı
+          daysCount = new Date(year, monthNum, 0).getDate();
+        } else {
+          // Gelecek ay: henüz başlamadı
+          daysCount = 0;
+        }
+
+        const monthlyBudget = dailyLimit * daysCount;
+        const totalSpent = items
+          .filter((e) => e.date.startsWith(month))
+          .reduce((s, e) => s + e.amount, 0);
+
+        return monthlyBudget - totalSpent;
+      },
       balanceDelta: (accountName) =>
         items
           .filter((e) => e.accountName === accountName)

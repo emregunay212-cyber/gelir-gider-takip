@@ -58,7 +58,11 @@ function estimatedMonthlyIncome(
 export default function Dashboard() {
   const { totalDelta: salaryDelta } = useSalary();
   const { totalDelta: cashDelta } = useCash();
-  const { totalDelta: expenseDelta, monthlyTotal: expenseMonthly } = useExpense();
+  const {
+    totalDelta: expenseDelta,
+    monthlyTotal: expenseMonthly,
+    monthlySavings,
+  } = useExpense();
   const { monthlyTotal: billsMonthly } = useBills();
   const { totalDelta: debtPaidDelta, isClosedByPayments } = useDebtPayment();
   const { resolveAmount } = useIncomeOverrides();
@@ -82,6 +86,7 @@ export default function Dashboard() {
     monthlyIncome - monthlyDebts - monthlyBills - monthlyDailyBudget;
 
   const thisMonthSpent = expenseMonthly(monthKey());
+  const thisMonthSavings = monthlySavings(monthKey(), dailyLimit);
 
   const cardMotion = {
     initial: { opacity: 0, y: 16 },
@@ -141,7 +146,11 @@ export default function Dashboard() {
           value={thisMonthSpent}
           tone="danger"
         />
-        <Stat label="Bu Ayın Tasarrufu" value={0} muted />
+        <Stat
+          label="Bu Ayın Tasarrufu"
+          value={thisMonthSavings}
+          tone={thisMonthSavings >= 0 ? 'success' : 'danger'}
+        />
         <Stat label="Aylık Borç" value={monthlyDebts} tone="danger" />
         <Stat
           label="Aylık Gelir (ort.)"
