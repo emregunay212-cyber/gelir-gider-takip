@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
-import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Check, Plus, RotateCcw, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import {
   parseExpenseFromSpeech,
@@ -10,41 +11,104 @@ import {
 import { AddExpenseDialog } from './AddExpenseDialog';
 
 export function VoiceExpenseButton() {
+  const [overlay, setOverlay] = useState(false);
   const [open, setOpen] = useState(false);
-  const [defaults, setDefaults] = useState<Partial<ParsedExpense> | undefined>(
-    undefined,
-  );
+  const [defaults, setDefaults] = useState<ParsedExpense | undefined>();
+
+  // Birikmiş final transcript (kullanıcı "Tamam" basana kadar saklanır)
+  const [accumulated, setAccumulated] = useState('');
+  // Şu an konuşulan ama henüz final olmayan ara metin
+  const [interim, setInterim] = useState('');
 
   const handleFinal = useCallback((text: string) => {
-    const parsed = parseExpenseFromSpeech(text);
-    if (parsed.amount > 0) {
-      setDefaults(parsed);
-      setOpen(true);
-      toast.success('Anlaşıldı 🎤', { description: text });
-    } else {
-      toast.error('Tutarı anlayamadım', {
-        description: `"${text}" — örn: "105 TL sigara aldım Garanti'den"`,
-      });
-    }
+    setAccumulated((prev) => (prev ? `${prev} ${text}` : text).trim());
+    setInterim('');
+  }, []);
+
+  const handleInterim = useCallback((text: string) => {
+    setInterim(text);
   }, []);
 
   const handleError = useCallback((error: string) => {
     if (error === 'no-speech') {
-      toast.warning('Ses algılanmadı', { description: 'Tekrar dener misin?' });
-    } else if (error === 'not-allowed') {
+      // Sessiz — kullanıcı henüz konuşmadı, tekrar başlatılabilir
+      return;
+    }
+    if (error === 'aborted') return;
+    if (error === 'not-allowed') {
       toast.error('Mikrofon izni gerekli', {
         description: 'Tarayıcı ayarlarından izin ver.',
       });
-    } else if (error !== 'aborted') {
-      toast.error('Ses tanıma hatası', { description: error });
+      return;
     }
+    toast.error('Ses tanıma hatası', { description: error });
   }, []);
 
-  const { supported, listening, transcript, start, stop } =
-    useSpeechRecognition({
-      onFinalResult: handleFinal,
-      onError: handleError,
-    });
+  const { supported, listening, start, stop } = useSpeechRecognition({
+    continuous: true,
+    onFinalResult: handleFinal,
+    onInterimResult: handleInterim,
+    onError: handleError,
+  });
+
+  const displayText = (accumulated + (interim ? ` ${interim}` : '')).trim();
+
+  function openOverlay() {
+    setOverlay(true);
+    setAccumulated('');
+    setInterim('');
+    start();
+  }
+
+  function closeOverlay() {
+    stop();
+    setOverlay(false);
+    setAccumulated('');
+    setInterim('');
+  }
+
+  function handleConfirm() {
+    stop();
+    if (!accumulated && !interim) {
+      toast.warning('Henüz bir şey söylemedin');
+      return;
+    }
+    const text = displayText;
+    const parsed = parseExpenseFromSpeech(text);
+    if (parsed.amount <= 0) {
+      toast.error('Tutarı anlayamadım', {
+        description: `"${text}" — örn: "105 TL sigara aldım Garanti'den"`,
+      });
+      return;
+    }
+    setDefaults(parsed);
+    setOverlay(false);
+    setAccumulated('');
+    setInterim('');
+    setOpen(true);
+    toast.success('Anlaşıldı 🎤', { description: text });
+  }
+
+  function handleContinue() {
+    setInterim('');
+    if (!listening) start();
+  }
+
+  function handleReset() {
+    stop();
+    setAccumulated('');
+    setInterim('');
+    // Recognition'ı kısa gecikme sonra yeniden başlat (stop bitsin diye)
+    setTimeout(() => start(), 80);
+  }
+
+  function handleToggleMic() {
+    if (listening) {
+      stop();
+    } else {
+      start();
+    }
+  }
 
   if (!supported) return null;
 
@@ -55,67 +119,148 @@ export function VoiceExpenseButton() {
         whileTap={{ scale: 0.92 }}
         whileHover={{ scale: 1.03 }}
         transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-        onClick={listening ? stop : start}
-        aria-label={listening ? 'Dinlemeyi durdur' : 'Sesle harcama ekle'}
-        className={`flex size-14 shrink-0 items-center justify-center rounded-xl shadow-md transition-colors ${
-          listening
-            ? 'bg-red-500 text-white animate-pulse'
-            : 'bg-white text-indigo-700 hover:bg-white/95'
-        }`}
+        onClick={openOverlay}
+        aria-label="Sesle harcama ekle"
+        className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-white text-indigo-700 shadow-md hover:bg-white/95"
       >
-        {listening ? <MicOff className="size-6" /> : <Mic className="size-6" />}
+        <Mic className="size-6" />
       </motion.button>
 
       <AnimatePresence>
-        {listening && (
+        {overlay && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-            onClick={stop}
+            className="fixed inset-0 z-40 flex items-end justify-center bg-black/60 p-3 backdrop-blur-sm sm:items-center"
           >
             <motion.div
               initial={{ y: 30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 30, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-              className="mx-4 max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
+              className="flex w-full max-w-md flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-2xl"
             >
-              <div className="relative mx-auto mb-4 flex size-20 items-center justify-center">
-                {/* Pulse rings */}
-                <motion.span
-                  className="absolute inset-0 rounded-full bg-red-500/20"
-                  animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }}
-                  transition={{ duration: 1.6, repeat: Infinity }}
-                />
-                <motion.span
-                  className="absolute inset-0 rounded-full bg-red-500/30"
-                  animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
-                  transition={{ duration: 1.6, repeat: Infinity, delay: 0.4 }}
-                />
-                <span className="relative flex size-16 items-center justify-center rounded-full bg-red-500 text-white">
-                  <Mic className="size-8" />
-                </span>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">Sesle Harcama Ekle</p>
+                <button
+                  type="button"
+                  onClick={closeOverlay}
+                  aria-label="Kapat"
+                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </button>
               </div>
-              <p className="text-base font-semibold">Sizi dinliyorum…</p>
-              <p className="mt-2 min-h-[3rem] text-sm text-muted-foreground">
-                {transcript || (
-                  <span className="italic">
+
+              {/* Mic durum göstergesi */}
+              <div className="flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={handleToggleMic}
+                  aria-label={listening ? 'Dinlemeyi durdur' : 'Konuşmaya başla'}
+                  className="relative flex size-20 items-center justify-center"
+                >
+                  {listening && (
+                    <>
+                      <motion.span
+                        className="absolute inset-0 rounded-full bg-red-500/20"
+                        animate={{
+                          scale: [1, 1.6, 1],
+                          opacity: [0.5, 0, 0.5],
+                        }}
+                        transition={{ duration: 1.6, repeat: Infinity }}
+                      />
+                      <motion.span
+                        className="absolute inset-0 rounded-full bg-red-500/30"
+                        animate={{
+                          scale: [1, 1.4, 1],
+                          opacity: [0.6, 0, 0.6],
+                        }}
+                        transition={{
+                          duration: 1.6,
+                          repeat: Infinity,
+                          delay: 0.4,
+                        }}
+                      />
+                    </>
+                  )}
+                  <span
+                    className={`relative flex size-16 items-center justify-center rounded-full text-white transition-colors ${
+                      listening ? 'bg-red-500' : 'bg-muted-foreground/40'
+                    }`}
+                  >
+                    {listening ? (
+                      <Mic className="size-8" />
+                    ) : (
+                      <MicOff className="size-8" />
+                    )}
+                  </span>
+                </button>
+              </div>
+
+              <p className="text-center text-xs text-muted-foreground">
+                {listening
+                  ? '🔴 Dinliyorum… mikrofona tıklayarak duraklatabilirsin'
+                  : 'Mikrofona tıklayarak konuşmaya devam et'}
+              </p>
+
+              {/* Canlı transcript kutusu */}
+              <div className="min-h-[6rem] rounded-xl border border-border bg-muted/30 p-3 text-sm leading-relaxed">
+                {displayText ? (
+                  <span className="break-words">
+                    <span className="text-foreground">{accumulated}</span>
+                    {interim && (
+                      <span className="ml-1 text-muted-foreground italic">
+                        {interim}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground italic">
                     Örn: "105 TL sigara aldım Garanti'den"
                   </span>
                 )}
-              </p>
-              <button
-                type="button"
-                onClick={stop}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <Loader2 className="size-3 animate-spin" />
-                Bekleniyor — durdur
-              </button>
+              </div>
+
+              {/* Aksiyon butonları */}
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReset}
+                  className="h-12"
+                  title="Konuşmayı sıfırla, baştan başla"
+                >
+                  <RotateCcw className="size-4" />
+                  Yeniden
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleContinue}
+                  disabled={listening}
+                  className="h-12"
+                  title="Konuşmaya ekleme yap"
+                >
+                  <Plus className="size-4" />
+                  Devam
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleConfirm}
+                  disabled={!displayText}
+                  className="h-12"
+                  title="Bittiğinde harcamayı kaydet"
+                >
+                  <Check className="size-4" />
+                  Tamam
+                </Button>
+              </div>
             </motion.div>
           </motion.div>
         )}
