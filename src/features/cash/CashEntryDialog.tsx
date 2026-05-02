@@ -1,7 +1,25 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useCash, type CashEntryDirection } from './CashProvider';
-import { SEED_ACCOUNTS } from '../../db/seed';
-import { todayKey } from '../../lib/format';
+import { SEED_ACCOUNTS } from '@/db/seed';
+import { todayKey, formatTRY } from '@/lib/format';
 
 interface Props {
   direction: CashEntryDirection;
@@ -21,21 +39,14 @@ const DIRECTION_HELP: Record<CashEntryDirection, string> = {
 
 export function CashEntryDialog({ direction, open, onClose }: Props) {
   const { addEntry } = useCash();
-  const dialogRef = useRef<HTMLDialogElement>(null);
 
   const defaultAccount =
-    SEED_ACCOUNTS.find((a) => a.type === 'cash')?.name ?? SEED_ACCOUNTS[0]?.name ?? '';
+    SEED_ACCOUNTS.find((a) => a.type === 'cash')?.name ??
+    SEED_ACCOUNTS[0]?.name ?? '';
 
   const [amount, setAmount] = useState<number>(0);
   const [description, setDescription] = useState<string>('');
   const [accountName, setAccountName] = useState<string>(defaultAccount);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -56,99 +67,101 @@ export function CashEntryDialog({ direction, open, onClose }: Props) {
       accountName,
       date: todayKey(),
     });
+    toast.success(
+      `${DIRECTION_LABEL[direction]}: ${formatTRY(amount)}`,
+      {
+        description: `${accountName}${description ? ` · ${description}` : ''}`,
+      },
+    );
     onClose();
   }
 
   const isIncoming = direction === 'in';
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={onClose}
-      className="m-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-0 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-sm"
-    >
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-[92vw] max-w-sm flex-col gap-4 p-5"
-      >
-        <div>
-          <h3 className="text-lg font-semibold">
-            {DIRECTION_LABEL[direction]}
-          </h3>
-          <p className="mt-1 text-xs text-[var(--color-muted)]">
-            {DIRECTION_HELP[direction]}
-          </p>
-        </div>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm gap-4 p-5">
+        <DialogHeader>
+          <DialogTitle>{DIRECTION_LABEL[direction]}</DialogTitle>
+          <DialogDescription>{DIRECTION_HELP[direction]}</DialogDescription>
+        </DialogHeader>
 
-        <label className="block text-sm">
-          <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-            Tutar (TL)
-          </span>
-          <input
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0"
-            value={amount > 0 ? amount : ''}
-            onChange={(event) => setAmount(Number(event.target.value))}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-base outline-none focus:border-[var(--color-primary)]"
-            autoFocus
-            placeholder="0,00"
-          />
-        </label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="cash-amount">Tutar (TL)</Label>
+            <Input
+              id="cash-amount"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={amount > 0 ? amount : ''}
+              onChange={(event) => setAmount(Number(event.target.value))}
+              className="h-12 text-2xl font-bold tabular-nums"
+              autoFocus
+              placeholder="0,00"
+            />
+          </div>
 
-        <label className="block text-sm">
-          <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-            Açıklama (opsiyonel)
-          </span>
-          <input
-            type="text"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm outline-none focus:border-[var(--color-primary)]"
-            placeholder={isIncoming ? 'Örn: Hediye, prim, iade' : 'Örn: Acil gider, fazladan ödeme'}
-            maxLength={80}
-          />
-        </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="cash-desc">Açıklama (opsiyonel)</Label>
+            <Input
+              id="cash-desc"
+              type="text"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder={
+                isIncoming
+                  ? 'Örn: Hediye, prim, iade'
+                  : 'Örn: Acil gider, fazladan ödeme'
+              }
+              maxLength={80}
+            />
+          </div>
 
-        <label className="block text-sm">
-          <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-            {isIncoming ? 'Hangi hesaba?' : 'Hangi hesaptan?'}
-          </span>
-          <select
-            value={accountName}
-            onChange={(event) => setAccountName(event.target.value)}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm outline-none focus:border-[var(--color-primary)]"
-          >
-            {SEED_ACCOUNTS.map((account) => (
-              <option key={account.name} value={account.name}>
-                {account.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <div className="space-y-1.5">
+            <Label>{isIncoming ? 'Hangi hesaba?' : 'Hangi hesaptan?'}</Label>
+            <Select
+              value={accountName}
+              onValueChange={(v) => setAccountName(v ?? '')}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SEED_ACCOUNTS.map((account) => (
+                  <SelectItem key={account.name} value={account.name}>
+                    {account.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-lg border border-[var(--color-border)] py-2.5 text-sm font-medium text-[var(--color-muted)] hover:bg-[var(--color-surface-2)]"
-          >
-            Vazgeç
-          </button>
-          <button
-            type="submit"
-            disabled={!Number.isFinite(amount) || amount <= 0}
-            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 ${
-              isIncoming
-                ? 'bg-[var(--color-success)]'
-                : 'bg-[var(--color-danger)]'
-            }`}
-          >
-            {isIncoming ? 'Kasaya Ekle' : 'Kasadan Düş'}
-          </button>
-        </div>
-      </form>
-    </dialog>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="flex-1"
+            >
+              Vazgeç
+            </Button>
+            <Button
+              type="submit"
+              disabled={!Number.isFinite(amount) || amount <= 0}
+              variant={isIncoming ? 'default' : 'destructive'}
+              className={`flex-1 ${
+                isIncoming
+                  ? 'bg-[var(--color-success)] hover:bg-[var(--color-success)]/90'
+                  : ''
+              }`}
+            >
+              {isIncoming ? 'Kasaya Ekle' : 'Kasadan Düş'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

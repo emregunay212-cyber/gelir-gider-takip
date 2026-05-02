@@ -1,5 +1,17 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useIncomeOverrides } from './IncomeOverridesProvider';
+import { formatTRY, monthLabel } from '@/lib/format';
 
 interface Props {
   incomeName: string;
@@ -15,20 +27,12 @@ export function SalaryRaiseDialog({
   onClose,
 }: Props) {
   const { overrides, setOverride, removeOverride } = useIncomeOverrides();
-  const dialogRef = useRef<HTMLDialogElement>(null);
 
   const existing = overrides[incomeName];
   const [amount, setAmount] = useState<number>(existing?.amount ?? currentAmount);
   const [effectiveFrom, setEffectiveFrom] = useState<string>(
     existing?.effectiveFrom ?? '2026-08',
   );
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -42,86 +46,85 @@ export function SalaryRaiseDialog({
     if (!Number.isFinite(amount) || amount <= 0) return;
     if (!/^\d{4}-\d{2}$/.test(effectiveFrom)) return;
     setOverride(incomeName, { effectiveFrom, amount });
+    toast.success(
+      `${incomeName} zammı planlandı`,
+      {
+        description: `${monthLabel(effectiveFrom)}'dan itibaren ${formatTRY(amount)}`,
+      },
+    );
     onClose();
   }
 
   function handleRemove() {
     removeOverride(incomeName);
+    toast.info(`${incomeName} zam planı silindi`);
     onClose();
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={onClose}
-      className="m-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-0 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-sm"
-    >
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-[92vw] max-w-sm flex-col gap-4 p-5"
-      >
-        <div>
-          <h3 className="text-lg font-semibold">Maaş Zammı Planla</h3>
-          <p className="mt-1 text-xs text-[var(--color-muted)]">
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm gap-4 p-5">
+        <DialogHeader>
+          <DialogTitle>Maaş Zammı Planla</DialogTitle>
+          <DialogDescription>
             {incomeName} · belirtilen aydan itibaren yeni tutar geçerli olur.
-          </p>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
 
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-            Yeni tutar (TL)
-          </span>
-          <input
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0"
-            value={amount > 0 ? amount : ''}
-            onChange={(event) => setAmount(Number(event.target.value))}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-2xl font-bold tabular-nums outline-none focus:border-[var(--color-primary)]"
-            autoFocus
-            placeholder="0,00"
-          />
-        </label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="raise-amount">Yeni tutar (TL)</Label>
+            <Input
+              id="raise-amount"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={amount > 0 ? amount : ''}
+              onChange={(event) => setAmount(Number(event.target.value))}
+              className="h-12 text-2xl font-bold tabular-nums"
+              autoFocus
+              placeholder="0,00"
+            />
+          </div>
 
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-            Hangi aydan itibaren?
-          </span>
-          <input
-            type="month"
-            value={effectiveFrom}
-            onChange={(event) => setEffectiveFrom(event.target.value)}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-base outline-none focus:border-[var(--color-primary)]"
-          />
-        </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="raise-from">Hangi aydan itibaren?</Label>
+            <Input
+              id="raise-from"
+              type="month"
+              value={effectiveFrom}
+              onChange={(event) => setEffectiveFrom(event.target.value)}
+              className="h-12"
+            />
+          </div>
 
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-lg border border-[var(--color-border)] py-2.5 text-sm font-medium text-[var(--color-muted)] hover:bg-[var(--color-surface-2)]"
-          >
-            Vazgeç
-          </button>
-          <button
-            type="submit"
-            className="flex-1 rounded-lg bg-[var(--color-primary)] py-2.5 text-sm font-semibold text-white hover:opacity-90"
-          >
-            Kaydet
-          </button>
-        </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="flex-1"
+            >
+              Vazgeç
+            </Button>
+            <Button type="submit" className="flex-1">
+              Kaydet
+            </Button>
+          </div>
 
-        {existing && (
-          <button
-            type="button"
-            onClick={handleRemove}
-            className="text-center text-xs text-[var(--color-danger)] hover:underline"
-          >
-            Mevcut zam planını sil
-          </button>
-        )}
-      </form>
-    </dialog>
+          {existing && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleRemove}
+              className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              Mevcut zam planını sil
+            </Button>
+          )}
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

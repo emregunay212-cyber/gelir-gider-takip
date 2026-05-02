@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useExpense } from './ExpenseProvider';
 import { AddExpenseDialog } from './AddExpenseDialog';
-import { SEED_HOUSEHOLD } from '../../db/seed';
-import { formatTRY } from '../../lib/format';
+import { SEED_HOUSEHOLD } from '@/db/seed';
+import { formatTRY } from '@/lib/format';
 
 export function TodaySpendingCard() {
   const { todaysTotal } = useExpense();
@@ -25,13 +26,11 @@ export function TodaySpendingCard() {
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--color-primary)] to-indigo-600 p-5 text-white shadow-lg">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 p-5 text-white shadow-lg ring-1 ring-white/10">
         <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
           Bugün Kalan Limit
         </p>
-        <p
-          className={`mt-1 text-4xl font-bold tabular-nums ${remainingTone}`}
-        >
+        <p className={`mt-1 text-4xl font-bold tabular-nums ${remainingTone}`}>
           {formatTRY(remaining)}
         </p>
         <p className="mt-1 text-xs opacity-80">
@@ -52,14 +51,15 @@ export function TodaySpendingCard() {
           />
         </div>
 
-        <button
+        <Button
           type="button"
           onClick={() => setOpen(true)}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-white py-4 text-base font-bold text-[var(--color-primary)] shadow-md transition-transform hover:bg-white/95 active:scale-[0.98]"
+          size="lg"
+          className="mt-5 w-full bg-white py-6 text-base font-bold text-indigo-700 shadow-md hover:bg-white/95"
         >
-          <Plus size={22} strokeWidth={2.6} />
+          <Plus className="size-5" strokeWidth={2.6} />
           Harcama Ekle
-        </button>
+        </Button>
       </div>
 
       <AddExpenseDialog open={open} onClose={() => setOpen(false)} />

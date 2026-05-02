@@ -1,14 +1,26 @@
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { toast } from 'sonner';
 import {
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from 'react';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useExpense, type ExpenseSpender } from './ExpenseProvider';
-import { SEED_ACCOUNTS } from '../../db/seed';
-import { todayKey } from '../../lib/format';
-import type { ExpenseCategory } from '../../types';
+import { SEED_ACCOUNTS } from '@/db/seed';
+import { todayKey, formatTRY } from '@/lib/format';
+import type { ExpenseCategory } from '@/types';
 import { useCurrentUser } from '../identity/CurrentUserProvider';
 
 interface Props {
@@ -37,20 +49,12 @@ const CATEGORIES: readonly CategoryOption[] = [
 export function AddExpenseDialog({ open, onClose }: Props) {
   const { addExpense } = useExpense();
   const { current } = useCurrentUser();
-  const dialogRef = useRef<HTMLDialogElement>(null);
 
   const [spender, setSpender] = useState<ExpenseSpender>(current);
   const [amount, setAmount] = useState<number>(0);
   const [category, setCategory] = useState<ExpenseCategory>('grocery');
   const [description, setDescription] = useState<string>('');
   const [accountName, setAccountName] = useState<string>('');
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -72,134 +76,135 @@ export function AddExpenseDialog({ open, onClose }: Props) {
       accountName: accountName || undefined,
       date: todayKey(),
     });
+    const catLabel = CATEGORIES.find((c) => c.value === category)?.label ?? '';
+    toast.success(`${formatTRY(amount)} harcama eklendi`, {
+      description: `${spender === 'emre' ? 'Emre' : 'Sıla'} · ${catLabel}${description ? ` · ${description}` : ''}`,
+    });
     onClose();
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={onClose}
-      className="m-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-0 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-sm"
-    >
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-[92vw] max-w-md flex-col gap-4 p-5"
-      >
-        <div>
-          <h3 className="text-lg font-semibold">Harcama Ekle</h3>
-          <p className="mt-1 text-xs text-[var(--color-muted)]">
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md gap-4 p-5">
+        <DialogHeader>
+          <DialogTitle>Harcama Ekle</DialogTitle>
+          <DialogDescription>
             Bugün için kaydedilir, günlük limitten ve kasadan düşülür.
-          </p>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
 
-        <Field label="Kim?">
-          <div className="grid grid-cols-2 gap-2">
-            <SpenderButton
-              active={spender === 'emre'}
-              onClick={() => setSpender('emre')}
-              color="emre"
-            >
-              Emre
-            </SpenderButton>
-            <SpenderButton
-              active={spender === 'sila'}
-              onClick={() => setSpender('sila')}
-              color="sila"
-            >
-              Sıla
-            </SpenderButton>
-          </div>
-        </Field>
-
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-            Tutar (TL)
-          </span>
-          <input
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0"
-            value={amount > 0 ? amount : ''}
-            onChange={(event) => setAmount(Number(event.target.value))}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-3xl font-bold tabular-nums outline-none focus:border-[var(--color-primary)]"
-            autoFocus
-            placeholder="0,00"
-          />
-        </label>
-
-        <Field label="Kategori">
-          <div className="grid grid-cols-3 gap-2">
-            {CATEGORIES.map((cat) => (
-              <button
-                type="button"
-                key={cat.value}
-                onClick={() => setCategory(cat.value)}
-                className={`flex flex-col items-center gap-0.5 rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors ${
-                  category === cat.value
-                    ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                    : 'border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-surface-2)]'
-                }`}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Kim?">
+            <div className="grid grid-cols-2 gap-2">
+              <SpenderButton
+                active={spender === 'emre'}
+                onClick={() => setSpender('emre')}
+                color="emre"
               >
-                <span className="text-lg" aria-hidden>
-                  {cat.emoji}
-                </span>
-                <span>{cat.label}</span>
-              </button>
-            ))}
+                Emre
+              </SpenderButton>
+              <SpenderButton
+                active={spender === 'sila'}
+                onClick={() => setSpender('sila')}
+                color="sila"
+              >
+                Sıla
+              </SpenderButton>
+            </div>
+          </Field>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="amount">Tutar (TL)</Label>
+            <Input
+              id="amount"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={amount > 0 ? amount : ''}
+              onChange={(event) => setAmount(Number(event.target.value))}
+              className="h-14 text-3xl font-bold tabular-nums"
+              autoFocus
+              placeholder="0,00"
+            />
           </div>
-        </Field>
 
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-            Açıklama (opsiyonel)
-          </span>
-          <input
-            type="text"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm outline-none focus:border-[var(--color-primary)]"
-            placeholder="Örn: Migros, Shell, BIM"
-            maxLength={80}
-          />
-        </label>
+          <Field label="Kategori">
+            <div className="grid grid-cols-3 gap-2">
+              {CATEGORIES.map((cat) => (
+                <button
+                  type="button"
+                  key={cat.value}
+                  onClick={() => setCategory(cat.value)}
+                  className={`flex flex-col items-center gap-0.5 rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors ${
+                    category === cat.value
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-input text-foreground hover:bg-accent'
+                  }`}
+                >
+                  <span className="text-lg" aria-hidden>
+                    {cat.emoji}
+                  </span>
+                  <span>{cat.label}</span>
+                </button>
+              ))}
+            </div>
+          </Field>
 
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-            Hangi hesaptan? (opsiyonel)
-          </span>
-          <select
-            value={accountName}
-            onChange={(event) => setAccountName(event.target.value)}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm outline-none focus:border-[var(--color-primary)]"
-          >
-            <option value="">— belirtme —</option>
-            {SEED_ACCOUNTS.map((account) => (
-              <option key={account.name} value={account.name}>
-                {account.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="description">Açıklama (opsiyonel)</Label>
+            <Input
+              id="description"
+              type="text"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Örn: Migros, Shell, BIM"
+              maxLength={80}
+            />
+          </div>
 
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-lg border border-[var(--color-border)] py-3 text-sm font-medium text-[var(--color-muted)] hover:bg-[var(--color-surface-2)]"
-          >
-            Vazgeç
-          </button>
-          <button
-            type="submit"
-            disabled={!Number.isFinite(amount) || amount <= 0}
-            className="flex-1 rounded-lg bg-[var(--color-primary)] py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          >
-            Kaydet
-          </button>
-        </div>
-      </form>
-    </dialog>
+          <div className="space-y-1.5">
+            <Label>Hangi hesaptan? (opsiyonel)</Label>
+            <Select
+              value={accountName || '__none__'}
+              onValueChange={(v) =>
+                setAccountName(!v || v === '__none__' ? '' : v)
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="— belirtme —" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— belirtme —</SelectItem>
+                {SEED_ACCOUNTS.map((account) => (
+                  <SelectItem key={account.name} value={account.name}>
+                    {account.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="flex-1"
+            >
+              Vazgeç
+            </Button>
+            <Button
+              type="submit"
+              disabled={!Number.isFinite(amount) || amount <= 0}
+              className="flex-1"
+            >
+              Kaydet
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -210,10 +215,8 @@ interface FieldProps {
 
 function Field({ label, children }: FieldProps) {
   return (
-    <div>
-      <span className="mb-2 block text-xs font-medium text-[var(--color-muted)]">
-        {label}
-      </span>
+    <div className="space-y-2">
+      <Label>{label}</Label>
       {children}
     </div>
   );
@@ -237,7 +240,7 @@ function SpenderButton({
       ? 'border-[var(--color-emre)] bg-[var(--color-emre)]/10 text-[var(--color-emre)]'
       : 'border-[var(--color-sila)] bg-[var(--color-sila)]/10 text-[var(--color-sila)]';
   const inactiveClass =
-    'border-[var(--color-border)] text-[var(--color-muted)] hover:bg-[var(--color-surface-2)]';
+    'border-input text-muted-foreground hover:bg-accent';
   return (
     <button
       type="button"

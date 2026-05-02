@@ -1,6 +1,17 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useSalary } from './SalaryProvider';
-import { monthKey } from '../../lib/format';
+import { monthKey, formatTRY } from '@/lib/format';
 
 interface Props {
   incomeName: string;
@@ -18,18 +29,10 @@ export function SalaryReceivedDialog({
   onClose,
 }: Props) {
   const { addReceipt } = useSalary();
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [amount, setAmount] = useState<number>(defaultAmount);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
-
-  useEffect(() => {
-    setAmount(defaultAmount);
+    if (open) setAmount(defaultAmount);
   }, [defaultAmount, open]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -42,63 +45,61 @@ export function SalaryReceivedDialog({
       amount,
       receivedAt: new Date().toISOString(),
     });
+    toast.success(`${formatTRY(amount)} ${incomeName.toLowerCase()} yatırıldı`, {
+      description: `Kasaya eklendi · ${accountName}`,
+    });
     onClose();
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={onClose}
-      className="m-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-0 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-sm"
-    >
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-[92vw] max-w-sm flex-col gap-4 p-5"
-      >
-        <div>
-          <h3 className="text-lg font-semibold">Maaş Yattı</h3>
-          <p className="mt-1 text-sm text-[var(--color-muted)]">
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm gap-4 p-5">
+        <DialogHeader>
+          <DialogTitle>Maaş Yattı</DialogTitle>
+          <DialogDescription>
             {incomeName} · {accountName}
-          </p>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
 
-        <label className="block text-sm">
-          <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-            Yatan tutar (TL)
-          </span>
-          <input
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0"
-            value={Number.isFinite(amount) ? amount : ''}
-            onChange={(event) => setAmount(Number(event.target.value))}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-base outline-none focus:border-[var(--color-primary)]"
-            autoFocus
-          />
-          <span className="mt-1 block text-[11px] text-[var(--color-muted)]">
-            Tahmini: {defaultAmount.toLocaleString('tr-TR')} TL — gerçek yatan
-            tutara göre düzenleyebilirsin.
-          </span>
-        </label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="salary-amount">Yatan tutar (TL)</Label>
+            <Input
+              id="salary-amount"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={Number.isFinite(amount) ? amount : ''}
+              onChange={(event) => setAmount(Number(event.target.value))}
+              className="h-12 text-2xl font-bold tabular-nums"
+              autoFocus
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Tahmini: {defaultAmount.toLocaleString('tr-TR')} TL — gerçek
+              tutara göre düzenleyebilirsin.
+            </p>
+          </div>
 
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-lg border border-[var(--color-border)] py-2.5 text-sm font-medium text-[var(--color-muted)] hover:bg-[var(--color-surface-2)]"
-          >
-            Vazgeç
-          </button>
-          <button
-            type="submit"
-            className="flex-1 rounded-lg bg-[var(--color-primary)] py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            disabled={!Number.isFinite(amount) || amount <= 0}
-          >
-            Kasaya Ekle
-          </button>
-        </div>
-      </form>
-    </dialog>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="flex-1"
+            >
+              Vazgeç
+            </Button>
+            <Button
+              type="submit"
+              disabled={!Number.isFinite(amount) || amount <= 0}
+              className="flex-1"
+            >
+              Kasaya Ekle
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
