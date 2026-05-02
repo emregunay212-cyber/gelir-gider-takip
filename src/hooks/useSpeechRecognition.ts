@@ -4,32 +4,28 @@ interface Options {
   lang?: string;
   /** True = recognition kullanıcı stop() çağırana kadar dinler. */
   continuous?: boolean;
-  onFinalResult?: (transcript: string) => void;
-  onInterimResult?: (transcript: string) => void;
   onError?: (error: string) => void;
 }
 
 interface State {
   supported: boolean;
   listening: boolean;
-  transcript: string;
+  /** Tüm session'ın kesinleşmiş (final) metni — duplicate-safe. */
+  finalText: string;
+  /** Şu an konuşulan ama henüz kesinleşmeyen interim metin. */
+  interimText: string;
   error: string | null;
 }
 
 interface Controls {
   start: () => void;
   stop: () => void;
+  /** finalText + interimText'i sıfırlar; recognition state'i değiştirmez. */
   reset: () => void;
 }
 
 export function useSpeechRecognition(options: Options = {}): State & Controls {
-  const {
-    lang = 'tr-TR',
-    continuous = false,
-    onFinalResult,
-    onInterimResult,
-    onError,
-  } = options;
+  const { lang = 'tr-TR', continuous = false, onError } = options;
 
   const Recognition =
     typeof window !== 'undefined'
@@ -39,15 +35,21 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [listening, setListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
+  const [finalText, setFinalText] = useState('');
+  const [interimText, setInterimText] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const stop = useCallback(() => {
-    recognitionRef.current?.stop();
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      // sessizce geç
+    }
   }, []);
 
   const reset = useCallback(() => {
-    setTranscript('');
+    setFinalText('');
+    setInterimText('');
     setError(null);
   }, []);
 
@@ -59,7 +61,6 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
     }
 
     setError(null);
-    setTranscript('');
 
     const rec = new Recognition();
     rec.lang = lang;
@@ -75,14 +76,21 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
       onError?.(event.error);
     };
     rec.onresult = (event) => {
-      const result = event.results[event.results.length - 1];
-      const text = result[0].transcript;
-      setTranscript(text);
-      if (result.isFinal) {
-        onFinalResult?.(text);
-      } else {
-        onInterimResult?.(text);
+      // Web Speech API event.results'ta SESSION'IN TAMAMI vardır.
+      // Her tetikte sıfırdan yeniden hesapla — duplicate önlenir.
+      let nextFinal = '';
+      let nextInterim = '';
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        const text = result[0].transcript;
+        if (result.isFinal) {
+          nextFinal += (nextFinal ? ' ' : '') + text.trim();
+        } else {
+          nextInterim = text.trim();
+        }
       }
+      setFinalText(nextFinal);
+      setInterimText(nextInterim);
     };
 
     recognitionRef.current = rec;
@@ -94,7 +102,7 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
       onError?.(message);
       setListening(false);
     }
-  }, [Recognition, lang, continuous, onFinalResult, onInterimResult, onError]);
+  }, [Recognition, lang, continuous, onError]);
 
   useEffect(() => {
     return () => {
@@ -106,5 +114,14 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
     };
   }, []);
 
-  return { supported, listening, transcript, error, start, stop, reset };
+  return {
+    supported,
+    listening,
+    finalText,
+    interimText,
+    error,
+    start,
+    stop,
+    reset,
+  };
 }

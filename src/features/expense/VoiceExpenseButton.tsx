@@ -15,25 +15,8 @@ export function VoiceExpenseButton() {
   const [open, setOpen] = useState(false);
   const [defaults, setDefaults] = useState<ParsedExpense | undefined>();
 
-  // Birikmiş final transcript (kullanıcı "Tamam" basana kadar saklanır)
-  const [accumulated, setAccumulated] = useState('');
-  // Şu an konuşulan ama henüz final olmayan ara metin
-  const [interim, setInterim] = useState('');
-
-  const handleFinal = useCallback((text: string) => {
-    setAccumulated((prev) => (prev ? `${prev} ${text}` : text).trim());
-    setInterim('');
-  }, []);
-
-  const handleInterim = useCallback((text: string) => {
-    setInterim(text);
-  }, []);
-
   const handleError = useCallback((error: string) => {
-    if (error === 'no-speech') {
-      // Sessiz — kullanıcı henüz konuşmadı, tekrar başlatılabilir
-      return;
-    }
+    if (error === 'no-speech') return;
     if (error === 'aborted') return;
     if (error === 'not-allowed') {
       toast.error('Mikrofon izni gerekli', {
@@ -44,62 +27,62 @@ export function VoiceExpenseButton() {
     toast.error('Ses tanıma hatası', { description: error });
   }, []);
 
-  const { supported, listening, start, stop } = useSpeechRecognition({
+  const {
+    supported,
+    listening,
+    finalText,
+    interimText,
+    start,
+    stop,
+    reset,
+  } = useSpeechRecognition({
     continuous: true,
-    onFinalResult: handleFinal,
-    onInterimResult: handleInterim,
     onError: handleError,
   });
 
-  const displayText = (accumulated + (interim ? ` ${interim}` : '')).trim();
+  const displayText = (finalText + (interimText ? ` ${interimText}` : '')).trim();
 
   function openOverlay() {
     setOverlay(true);
-    setAccumulated('');
-    setInterim('');
+    reset();
     start();
   }
 
   function closeOverlay() {
     stop();
+    reset();
     setOverlay(false);
-    setAccumulated('');
-    setInterim('');
   }
 
   function handleConfirm() {
     stop();
-    if (!accumulated && !interim) {
+    const text = displayText;
+    if (!text) {
       toast.warning('Henüz bir şey söylemedin');
       return;
     }
-    const text = displayText;
     const parsed = parseExpenseFromSpeech(text);
     if (parsed.amount <= 0) {
       toast.error('Tutarı anlayamadım', {
-        description: `"${text}" — örn: "105 TL sigara aldım Garanti'den"`,
+        description: `"${text}" — örn: "215 TL çiğ köfte aldım"`,
       });
       return;
     }
     setDefaults(parsed);
     setOverlay(false);
-    setAccumulated('');
-    setInterim('');
+    reset();
     setOpen(true);
     toast.success('Anlaşıldı 🎤', { description: text });
   }
 
   function handleContinue() {
-    setInterim('');
     if (!listening) start();
   }
 
   function handleReset() {
     stop();
-    setAccumulated('');
-    setInterim('');
-    // Recognition'ı kısa gecikme sonra yeniden başlat (stop bitsin diye)
-    setTimeout(() => start(), 80);
+    reset();
+    setTimeout(() => start(), 100);
   }
 
   function handleToggleMic() {
@@ -210,16 +193,16 @@ export function VoiceExpenseButton() {
               <div className="min-h-[6rem] rounded-xl border border-border bg-muted/30 p-3 text-sm leading-relaxed">
                 {displayText ? (
                   <span className="break-words">
-                    <span className="text-foreground">{accumulated}</span>
-                    {interim && (
+                    <span className="text-foreground">{finalText}</span>
+                    {interimText && (
                       <span className="ml-1 text-muted-foreground italic">
-                        {interim}
+                        {interimText}
                       </span>
                     )}
                   </span>
                 ) : (
                   <span className="text-muted-foreground italic">
-                    Örn: "105 TL sigara aldım Garanti'den"
+                    Örn: "215 TL çiğ köfte aldım Garanti'den"
                   </span>
                 )}
               </div>
