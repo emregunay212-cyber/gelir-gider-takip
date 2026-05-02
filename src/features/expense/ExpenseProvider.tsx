@@ -7,8 +7,8 @@ import {
 } from 'react';
 import type { DocumentData } from 'firebase/firestore';
 import type { ExpenseCategory } from '../../types';
-import { todayKey } from '../../lib/format';
 import { useFirestoreCollection } from '../../lib/firestore-helpers';
+import { useToday } from '../../hooks/useToday';
 
 export type ExpenseSpender = 'emre' | 'sila';
 
@@ -95,6 +95,7 @@ interface ProviderProps {
 export function ExpenseProvider({ children }: ProviderProps) {
   const { items, ready, upsert, remove, upsertMany } =
     useFirestoreCollection<ExpenseEntry>(COLLECTION, validateExpenseEntry);
+  const today = useToday();
 
   useEffect(() => {
     if (!ready) return;
@@ -147,7 +148,6 @@ export function ExpenseProvider({ children }: ProviderProps) {
   }, [ready, upsertMany]);
 
   const value = useMemo<ExpenseContextValue>(() => {
-    const today = todayKey();
     const todaysList = items.filter((e) => e.date === today);
     const totalAll = items.reduce((s, e) => s + e.amount, 0);
     return {
@@ -177,7 +177,7 @@ export function ExpenseProvider({ children }: ProviderProps) {
           .filter((e) => e.accountName === accountName)
           .reduce((s, e) => s + e.amount, 0),
     };
-  }, [items, upsert, remove]);
+  }, [items, today, upsert, remove]);
 
   return (
     <ExpenseContext.Provider value={value}>{children}</ExpenseContext.Provider>
