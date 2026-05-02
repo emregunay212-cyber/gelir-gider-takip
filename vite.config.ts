@@ -11,6 +11,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
+      workbox: {
+        // Yeni service worker yüklenir yüklenmez devralır,
+        // mevcut tab'lar agresif şekilde yeni sürüme geçer.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+      },
       manifest: {
         name: 'Aile Bütçe',
         short_name: 'Bütçe',

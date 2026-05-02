@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { DocumentData } from 'firebase/firestore';
+import { toast } from 'sonner';
 import type { ExpenseCategory } from '../../types';
 import { useFirestoreCollection } from '../../lib/firestore-helpers';
 import { useToday } from '../../hooks/useToday';
@@ -154,14 +155,29 @@ export function ExpenseProvider({ children }: ProviderProps) {
       entries: items,
       addExpense: (input) => {
         const entry: ExpenseEntry = {
-          ...input,
           id: generateId(),
+          spender: input.spender,
+          date: input.date,
+          amount: input.amount,
+          category: input.category,
           createdAt: new Date().toISOString(),
         };
-        void upsert(entry);
+        // Opsiyonel alanları yalnızca dolu olduklarında ekle (Firestore undefined kabul etmez)
+        if (input.description) entry.description = input.description;
+        if (input.accountName) entry.accountName = input.accountName;
+
+        upsert(entry).catch((err: unknown) => {
+          const message =
+            err instanceof Error ? err.message : 'Bilinmeyen hata';
+          toast.error('Harcama kaydedilemedi', { description: message });
+        });
       },
       removeExpense: (id) => {
-        void remove(id);
+        remove(id).catch((err: unknown) => {
+          const message =
+            err instanceof Error ? err.message : 'Bilinmeyen hata';
+          toast.error('Silinemedi', { description: message });
+        });
       },
       todaysExpenses: () => todaysList,
       todaysTotal: () => todaysList.reduce((s, e) => s + e.amount, 0),
