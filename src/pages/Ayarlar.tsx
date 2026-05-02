@@ -1,18 +1,27 @@
 import { useState, type ReactNode } from 'react';
 import { RotateCcw, Download, FileSpreadsheet } from 'lucide-react';
-import { SEED_HOUSEHOLD } from '../db/seed';
-import { formatTRY } from '../lib/format';
-import { useDataExport } from '../features/export/useDataExport';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { SEED_HOUSEHOLD } from '@/db/seed';
+import { formatTRY } from '@/lib/format';
+import { useDataExport } from '@/features/export/useDataExport';
 
 const STORAGE_KEYS_TO_CLEAR = [
   'salary_receipts_v1',
   'salary_receipts_seeded_v1',
+  'salary_receipts_seeded_fs_v1',
+  'salary_receipts_migrated_v1',
   'cash_entries_v1',
+  'cash_entries_migrated_v1',
   'expense_entries_v1',
+  'expense_entries_migrated_v1',
   'bills_state_v1',
+  'bills_state_migrated_v1',
   'debt_payments_v1',
   'debt_payments_seeded_v1',
+  'debt_payments_seeded_fs_v1',
   'debt_payments_unmark_v1',
+  'debt_payments_migrated_v1',
 ];
 
 function clearAllLocalState(): void {
@@ -42,114 +51,112 @@ export default function Ayarlar() {
     <section className="space-y-4">
       <div>
         <h2 className="text-2xl font-semibold">Ayarlar</h2>
-        <p className="text-sm text-[var(--color-muted)]">
+        <p className="text-sm text-muted-foreground">
           Limit, tema ve veri yönetimi.
         </p>
       </div>
 
       <div className="space-y-3">
-        <Card title="Günlük Harcama Limiti">
+        <SettingsCard title="Günlük Harcama Limiti">
           <div className="flex items-center justify-between">
-            <p className="text-2xl font-semibold">
+            <p className="text-2xl font-semibold tabular-nums">
               {formatTRY(SEED_HOUSEHOLD.defaultDailyLimit)}
             </p>
-            <button
-              type="button"
-              disabled
-              className="rounded-lg bg-[var(--color-surface-2)] px-3 py-1.5 text-sm text-[var(--color-muted)]"
-            >
+            <Button type="button" variant="outline" size="sm" disabled>
               Düzenle (Faz 6)
-            </button>
+            </Button>
           </div>
-          <p className="mt-2 text-xs text-[var(--color-muted)]">
+          <p className="mt-2 text-xs text-muted-foreground">
             300 TL yaşam + 210 TL sigara dahil. Aşım olursa ertesi günkü limit
             azalır; kalan miktar kasaya yatar.
           </p>
-        </Card>
+        </SettingsCard>
 
-        <Card title="Tema">
-          <p className="text-sm text-[var(--color-muted)]">
-            Açık · Koyu · Sistem (Faz 6)
+        <SettingsCard title="Tema">
+          <p className="text-sm text-muted-foreground">
+            Şu an: <span className="font-medium text-foreground">Koyu (Dark)</span> ·
+            açık tema seçimi sonraki fazda
           </p>
-        </Card>
+        </SettingsCard>
 
-        <Card title="Yedekleme & Dışa Aktarma">
-          <p className="text-sm text-[var(--color-muted)]">
+        <SettingsCard title="Yedekleme & Dışa Aktarma">
+          <p className="text-sm text-muted-foreground">
             Tüm verilerin JSON yedeği veya harcamaların Excel uyumlu CSV dosyası.
           </p>
           <div className="mt-3 grid grid-cols-1 gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={downloadJson}
-              className="flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] py-2.5 text-sm font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-2)]"
+              className="w-full"
             >
-              <Download size={16} />
+              <Download className="size-4" />
               Tam Yedek (JSON)
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={downloadExpensesCsv}
-              className="flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] py-2.5 text-sm font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-2)]"
+              className="w-full"
             >
-              <FileSpreadsheet size={16} />
+              <FileSpreadsheet className="size-4" />
               Harcamalar (CSV / Excel)
-            </button>
+            </Button>
           </div>
-        </Card>
+        </SettingsCard>
 
-        <Card title="Veri Sıfırlama">
-          <p className="text-sm text-[var(--color-muted)]">
+        <SettingsCard title="Veri Sıfırlama">
+          <p className="text-sm text-muted-foreground">
             Maaş kayıtları, manuel kasa hareketleri ve günlük harcamalar silinir.
             Borç ve hesap seed datası değişmez. Test sonrası temiz başlamak için
             kullan.
           </p>
-          <button
+          <Button
             type="button"
             onClick={handleReset}
-            className={`mt-3 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-colors ${
-              confirming
-                ? 'bg-[var(--color-danger)] text-white hover:opacity-90'
-                : 'border border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-surface-2)]'
-            }`}
+            variant={confirming ? 'destructive' : 'outline'}
+            className="mt-3 w-full"
           >
-            <RotateCcw size={16} />
+            <RotateCcw className="size-4" />
             {confirming
               ? 'Onayla — tüm yerel veriler silinecek'
               : 'Test Verilerini Sıfırla'}
-          </button>
+          </Button>
           {confirming && (
             <button
               type="button"
               onClick={() => setConfirming(false)}
-              className="mt-2 w-full text-center text-xs text-[var(--color-muted)] hover:underline"
+              className="mt-2 w-full text-center text-xs text-muted-foreground hover:underline"
             >
               Vazgeç
             </button>
           )}
-        </Card>
+        </SettingsCard>
 
-        <Card title="Hane Üyeleri">
-          <p className="text-sm text-[var(--color-muted)]">
+        <SettingsCard title="Hane Üyeleri">
+          <p className="text-sm text-muted-foreground">
             Emre · Sıla. Davet linki ve renk değiştirme (Faz 6).
           </p>
-        </Card>
+        </SettingsCard>
       </div>
     </section>
   );
 }
 
-interface CardProps {
+interface SettingsCardProps {
   title: string;
   children: ReactNode;
 }
 
-function Card({ title, children }: CardProps) {
+function SettingsCard({ title, children }: SettingsCardProps) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
-        {title}
-      </p>
-      <div className="mt-2">{children}</div>
-    </div>
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {title}
+        </p>
+        <div className="mt-2">{children}</div>
+      </CardContent>
+    </Card>
   );
 }

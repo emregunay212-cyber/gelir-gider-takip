@@ -1,28 +1,20 @@
 import { Check } from 'lucide-react';
-import { formatTRY, monthKey } from '../lib/format';
-import { SEED_DEBTS, type SeedDebt } from '../db/seed';
-import { useDebtPayment } from '../features/debt/DebtPaymentProvider';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { formatTRY, monthKey, monthLabel } from '@/lib/format';
+import { SEED_DEBTS, type SeedDebt } from '@/db/seed';
+import { useDebtPayment } from '@/features/debt/DebtPaymentProvider';
 
 const OWNER_LABEL: Record<'emre' | 'sila', string> = {
   emre: 'Emre',
   sila: 'Sıla',
 };
 
-const OWNER_COLOR: Record<'emre' | 'sila', string> = {
-  emre: 'bg-[var(--color-emre)]/15 text-[var(--color-emre)]',
-  sila: 'bg-[var(--color-sila)]/15 text-[var(--color-sila)]',
+const OWNER_BADGE: Record<'emre' | 'sila', string> = {
+  emre: 'bg-[var(--color-emre)]/15 text-[var(--color-emre)] border-[var(--color-emre)]/30',
+  sila: 'bg-[var(--color-sila)]/15 text-[var(--color-sila)] border-[var(--color-sila)]/30',
 };
-
-const TR_MONTHS = [
-  'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
-];
-
-function monthLabel(key: string): string {
-  const [year, m] = key.split('-');
-  const idx = Number(m) - 1;
-  return `${TR_MONTHS[idx] ?? m} ${year}`;
-}
 
 export default function Borclar() {
   const {
@@ -54,7 +46,7 @@ export default function Borclar() {
     <section className="space-y-4">
       <div>
         <h2 className="text-2xl font-semibold">Borçlar</h2>
-        <p className="text-sm text-[var(--color-muted)]">
+        <p className="text-sm text-muted-foreground">
           Aylık toplam ödeme:{' '}
           <span className="font-semibold text-[var(--color-danger)]">
             {formatTRY(totalMonthly)}
@@ -63,24 +55,27 @@ export default function Borclar() {
         </p>
       </div>
 
-      {/* Bu ay özet */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success)]/5 p-3">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-success)]">
-            {monthLabelText} ödenen
-          </p>
-          <p className="mt-1 text-base font-bold text-[var(--color-success)]">
-            {formatTRY(paidThisMonth)}
-          </p>
-        </div>
-        <div className="rounded-xl border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/5 p-3">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-warning)]">
-            Bekleyen
-          </p>
-          <p className="mt-1 text-base font-bold text-[var(--color-warning)]">
-            {formatTRY(pendingThisMonth)}
-          </p>
-        </div>
+        <Card className="border-[var(--color-success)]/30 bg-[var(--color-success)]/5">
+          <CardContent className="p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-success)]">
+              {monthLabelText} ödenen
+            </p>
+            <p className="mt-1 text-base font-bold tabular-nums text-[var(--color-success)]">
+              {formatTRY(paidThisMonth)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-[var(--color-warning)]/30 bg-[var(--color-warning)]/5">
+          <CardContent className="p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-warning)]">
+              Bekleyen
+            </p>
+            <p className="mt-1 text-base font-bold tabular-nums text-[var(--color-warning)]">
+              {formatTRY(pendingThisMonth)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <ul className="space-y-2">
@@ -145,88 +140,91 @@ function DebtCard({
   monthLabel,
   closed,
 }: DebtCardProps) {
+  const cardClass = closed
+    ? 'border-[var(--color-success)]/30 bg-[var(--color-success)]/5 opacity-80'
+    : paid
+      ? 'border-[var(--color-success)]/30 bg-[var(--color-success)]/5'
+      : '';
+
   return (
-    <li
-      className={`rounded-xl border p-3 ${
-        closed
-          ? 'border-[var(--color-success)]/30 bg-[var(--color-success)]/5 opacity-80'
-          : paid
-            ? 'border-[var(--color-success)]/30 bg-[var(--color-success)]/5'
-            : 'border-[var(--color-border)] bg-[var(--color-surface)]'
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${OWNER_COLOR[debt.ownerKey]}`}
-            >
-              {OWNER_LABEL[debt.ownerKey]}
-            </span>
-            <p
-              className={`truncate font-medium ${closed ? 'line-through' : ''}`}
-            >
-              {debt.name}
+    <Card className={cardClass}>
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className={`px-1.5 py-0 text-[10px] font-medium ${OWNER_BADGE[debt.ownerKey]}`}
+              >
+                {OWNER_LABEL[debt.ownerKey]}
+              </Badge>
+              <p
+                className={`truncate font-medium ${closed ? 'line-through' : ''}`}
+              >
+                {debt.name}
+              </p>
+              {closed && (
+                <Badge className="bg-[var(--color-success)]/15 text-[var(--color-success)] border-[var(--color-success)]/30 px-1.5 py-0 text-[10px] font-semibold">
+                  Kapandı
+                </Badge>
+              )}
+              {paid && !closed && (
+                <Badge className="bg-[var(--color-success)]/15 text-[var(--color-success)] border-[var(--color-success)]/30 px-1.5 py-0 text-[10px] font-semibold">
+                  {monthLabel} ödendi
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {debt.bankOrCreditor}
+              {!closed && remaining != null
+                ? ` · ${remaining} ay kaldı`
+                : ''}
+              {!closed && principal != null
+                ? ` · ${formatTRY(principal)} kalan`
+                : ''}
             </p>
-            {closed && (
-              <span className="rounded bg-[var(--color-success)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-success)]">
-                Kapandı
-              </span>
+            {debt.type === 'interest_only' && !closed && (
+              <p className="mt-1 rounded bg-[var(--color-warning)]/15 px-2 py-1 text-[11px] text-[var(--color-warning)]">
+                ⚠ Sadece faiz — ana borç sabit kalır.
+              </p>
             )}
-            {paid && !closed && (
-              <span className="rounded bg-[var(--color-success)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-success)]">
-                {monthLabel} ödendi
-              </span>
+            {debt.notes && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {debt.notes}
+              </p>
             )}
           </div>
-          <p className="mt-1 text-xs text-[var(--color-muted)]">
-            {debt.bankOrCreditor}
-            {!closed && remaining != null
-              ? ` · ${remaining} ay kaldı`
-              : ''}
-            {!closed && principal != null
-              ? ` · ${formatTRY(principal)} kalan`
-              : ''}
-          </p>
-          {debt.type === 'interest_only' && !closed && (
-            <p className="mt-1 rounded bg-[var(--color-warning)]/15 px-2 py-1 text-[11px] text-[var(--color-warning)]">
-              ⚠ Sadece faiz — ana borç sabit kalır.
+          <div className="text-right">
+            <p
+              className={`font-semibold tabular-nums ${
+                closed ? 'text-muted-foreground line-through' : ''
+              }`}
+            >
+              {formatTRY(debt.monthlyPayment)}
             </p>
-          )}
-          {debt.notes && (
-            <p className="mt-1 text-[11px] text-[var(--color-muted)]">
-              {debt.notes}
-            </p>
-          )}
+            <p className="text-[11px] text-muted-foreground">/ ay</p>
+          </div>
         </div>
-        <div className="text-right">
-          <p
-            className={`font-semibold ${
-              closed ? 'text-[var(--color-muted)] line-through' : ''
+
+        {!closed && (
+          <Button
+            type="button"
+            variant={paid ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={paid ? onUnmark : onMark}
+            className={`mt-2.5 w-full ${
+              paid
+                ? 'bg-[var(--color-success)]/15 text-[var(--color-success)] hover:bg-[var(--color-success)]/25'
+                : ''
             }`}
           >
-            {formatTRY(debt.monthlyPayment)}
-          </p>
-          <p className="text-[11px] text-[var(--color-muted)]">/ ay</p>
-        </div>
-      </div>
-
-      {!closed && (
-        <button
-          type="button"
-          onClick={paid ? onUnmark : onMark}
-          className={`mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors ${
-            paid
-              ? 'bg-[var(--color-success)]/15 text-[var(--color-success)] hover:bg-[var(--color-success)]/25'
-              : 'border border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-surface-2)]'
-          }`}
-        >
-          {paid && <Check size={14} />}
-          {paid
-            ? `${monthLabel} ödendi (geri al)`
-            : `${monthLabel} ödendi olarak işaretle`}
-        </button>
-      )}
-    </li>
+            {paid && <Check className="size-3.5" />}
+            {paid
+              ? `${monthLabel} ödendi (geri al)`
+              : `${monthLabel} ödendi olarak işaretle`}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }

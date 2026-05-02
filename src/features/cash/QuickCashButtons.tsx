@@ -14,17 +14,17 @@ export function QuickCashButtons() {
         <button
           type="button"
           onClick={() => setOpenDirection('in')}
-          className="flex items-center justify-center gap-2 rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success)]/10 px-3 py-3 text-sm font-semibold text-[var(--color-success)] transition-colors hover:bg-[var(--color-success)]/15"
+          className="flex items-center justify-center gap-2 rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success)]/10 px-3 py-3 text-sm font-semibold text-[var(--color-success)] transition-colors hover:bg-[var(--color-success)]/20 active:translate-y-px"
         >
-          <ArrowDownCircle size={18} />
+          <ArrowDownCircle className="size-[18px]" />
           Gelen Para
         </button>
         <button
           type="button"
           onClick={() => setOpenDirection('out')}
-          className="flex items-center justify-center gap-2 rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 px-3 py-3 text-sm font-semibold text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger)]/15"
+          className="flex items-center justify-center gap-2 rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 px-3 py-3 text-sm font-semibold text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger)]/20 active:translate-y-px"
         >
-          <ArrowUpCircle size={18} />
+          <ArrowUpCircle className="size-[18px]" />
           Giden Para
         </button>
       </div>

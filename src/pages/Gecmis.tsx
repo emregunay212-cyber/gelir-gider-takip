@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   formatTRY,
   monthKey,
@@ -7,14 +9,14 @@ import {
   addMonth,
   getDaysInMonth,
   dayLabel,
-} from '../lib/format';
-import { SEED_HOUSEHOLD } from '../db/seed';
-import type { ExpenseCategory } from '../types';
+} from '@/lib/format';
+import { SEED_HOUSEHOLD } from '@/db/seed';
+import type { ExpenseCategory } from '@/types';
 import {
   useExpense,
   type ExpenseEntry,
   type ExpenseSpender,
-} from '../features/expense/ExpenseProvider';
+} from '@/features/expense/ExpenseProvider';
 
 const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
   food: 'Yemek',
@@ -43,8 +45,8 @@ const CATEGORY_EMOJI: Record<ExpenseCategory, string> = {
 };
 
 const SPENDER_BADGE: Record<ExpenseSpender, string> = {
-  emre: 'bg-[var(--color-emre)]/15 text-[var(--color-emre)]',
-  sila: 'bg-[var(--color-sila)]/15 text-[var(--color-sila)]',
+  emre: 'bg-[var(--color-emre)]/15 text-[var(--color-emre)] border-[var(--color-emre)]/30',
+  sila: 'bg-[var(--color-sila)]/15 text-[var(--color-sila)] border-[var(--color-sila)]/30',
 };
 
 interface CategoryStat {
@@ -124,28 +126,30 @@ export default function Gecmis() {
   return (
     <section className="space-y-4">
       {/* Ay seçici */}
-      <div className="flex items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-        <button
-          type="button"
-          onClick={() => setMonth(addMonth(month, -1))}
-          className="rounded-lg p-2 text-[var(--color-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
-          aria-label="Önceki ay"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <p className="text-base font-semibold">{monthLabel(month)}</p>
-        <button
-          type="button"
-          onClick={() => setMonth(addMonth(month, 1))}
-          className="rounded-lg p-2 text-[var(--color-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
-          aria-label="Sonraki ay"
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
+      <Card>
+        <CardContent className="flex items-center justify-between gap-2 p-3">
+          <button
+            type="button"
+            onClick={() => setMonth(addMonth(month, -1))}
+            className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Önceki ay"
+          >
+            <ChevronLeft className="size-[18px]" />
+          </button>
+          <p className="text-base font-semibold">{monthLabel(month)}</p>
+          <button
+            type="button"
+            onClick={() => setMonth(addMonth(month, 1))}
+            className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Sonraki ay"
+          >
+            <ChevronRight className="size-[18px]" />
+          </button>
+        </CardContent>
+      </Card>
 
       {/* Aylık özet */}
-      <div className="rounded-2xl bg-gradient-to-br from-[var(--color-primary)] to-indigo-600 p-5 text-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 p-5 text-white shadow-lg ring-1 ring-white/10">
         <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
           Bu Ay Toplam Harcama
         </p>
@@ -176,62 +180,63 @@ export default function Gecmis() {
         </div>
       </div>
 
-      {/* Kim daha çok harcadı */}
       {(spenderTotals.emre > 0 || spenderTotals.sila > 0) && (
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-muted)]">
-            Kim Daha Çok Harcadı
-          </p>
-          <SpenderBars
-            emre={spenderTotals.emre}
-            sila={spenderTotals.sila}
-          />
-        </div>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Kim Daha Çok Harcadı
+            </p>
+            <SpenderBars
+              emre={spenderTotals.emre}
+              sila={spenderTotals.sila}
+            />
+          </CardContent>
+        </Card>
       )}
 
-      {/* Kategori dağılımı */}
       {categoryStats.length > 0 && (
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-muted)]">
-            Kategori Dağılımı
-          </p>
-          <ul className="mt-2 space-y-2">
-            {categoryStats.map((stat) => (
-              <li key={stat.category} className="space-y-1">
-                <div className="flex items-center justify-between gap-2 text-sm">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span aria-hidden>{CATEGORY_EMOJI[stat.category]}</span>
-                    <span className="truncate font-medium">
-                      {CATEGORY_LABEL[stat.category]}
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Kategori Dağılımı
+            </p>
+            <ul className="mt-2 space-y-2">
+              {categoryStats.map((stat) => (
+                <li key={stat.category} className="space-y-1">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span aria-hidden>{CATEGORY_EMOJI[stat.category]}</span>
+                      <span className="truncate font-medium">
+                        {CATEGORY_LABEL[stat.category]}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {stat.count} adet
+                      </span>
                     </span>
-                    <span className="text-[11px] text-[var(--color-muted)]">
-                      {stat.count} adet
+                    <span className="font-semibold tabular-nums">
+                      {formatTRY(stat.amount)}
                     </span>
-                  </span>
-                  <span className="font-semibold tabular-nums">
-                    {formatTRY(stat.amount)}
-                  </span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
-                  <div
-                    className="h-full bg-[var(--color-primary)]"
-                    style={{ width: `${stat.percent}%` }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full bg-primary"
+                      style={{ width: `${stat.percent}%` }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Günlük gruplandırılmış liste */}
       {dayGroups.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)] p-6 text-center text-sm text-[var(--color-muted)]">
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
           {monthLabel(month)} için henüz harcama yok.
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Günlük Detay · {dayGroups.length} gün
           </p>
           {dayGroups.map((group) => (
@@ -244,51 +249,51 @@ export default function Gecmis() {
               </div>
               <ul className="space-y-1.5">
                 {group.expenses.map((expense) => (
-                  <li
-                    key={expense.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5"
-                  >
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <span className="text-lg" aria-hidden>
-                        {CATEGORY_EMOJI[expense.category]}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${SPENDER_BADGE[expense.spender]}`}
-                          >
-                            {expense.spender === 'emre' ? 'Emre' : 'Sıla'}
-                          </span>
-                          <p className="truncate text-sm font-medium">
-                            {CATEGORY_LABEL[expense.category]}
-                            {expense.description && (
-                              <span className="ml-1 font-normal text-[var(--color-muted)]">
-                                · {expense.description}
-                              </span>
-                            )}
-                          </p>
+                  <Card key={expense.id}>
+                    <CardContent className="flex items-center justify-between gap-2 px-3 py-2.5">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="text-lg" aria-hidden>
+                          {CATEGORY_EMOJI[expense.category]}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className={`px-1.5 py-0 text-[10px] font-medium ${SPENDER_BADGE[expense.spender]}`}
+                            >
+                              {expense.spender === 'emre' ? 'Emre' : 'Sıla'}
+                            </Badge>
+                            <p className="truncate text-sm font-medium">
+                              {CATEGORY_LABEL[expense.category]}
+                              {expense.description && (
+                                <span className="ml-1 font-normal text-muted-foreground">
+                                  · {expense.description}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          {expense.accountName && (
+                            <p className="text-[11px] text-muted-foreground">
+                              {expense.accountName}
+                            </p>
+                          )}
                         </div>
-                        {expense.accountName && (
-                          <p className="text-[11px] text-[var(--color-muted)]">
-                            {expense.accountName}
-                          </p>
-                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold tabular-nums text-[var(--color-danger)]">
-                        −{formatTRY(expense.amount)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeExpense(expense.id)}
-                        aria-label="Sil"
-                        className="rounded p-1.5 text-[var(--color-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-danger)]"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </li>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold tabular-nums text-[var(--color-danger)]">
+                          −{formatTRY(expense.amount)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeExpense(expense.id)}
+                          aria-label="Sil"
+                          className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-[var(--color-danger)]"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </ul>
             </div>
@@ -341,7 +346,7 @@ function SpenderRow({ label, amount, percent, color }: SpenderRowProps) {
         <span className="font-medium">{label}</span>
         <span className="font-semibold tabular-nums">{formatTRY(amount)}</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div className={`h-full ${color}`} style={{ width: `${percent}%` }} />
       </div>
     </div>
