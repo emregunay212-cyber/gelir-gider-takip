@@ -136,15 +136,12 @@ export function AddExpenseDialog({ open, onClose }: Props) {
               onValueChange={(v) => v && setCategory(v as ExpenseCategory)}
             >
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue placeholder="Kategori seç" />
               </SelectTrigger>
               <SelectContent>
                 {CATEGORIES.map((cat) => (
                   <SelectItem key={cat.value} value={cat.value}>
-                    <span className="mr-2 text-base" aria-hidden>
-                      {cat.emoji}
-                    </span>
-                    {cat.label}
+                    {`${cat.emoji}  ${cat.label}`}
                   </SelectItem>
                 ))}
               </SelectContent>

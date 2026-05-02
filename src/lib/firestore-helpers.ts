@@ -31,6 +31,18 @@ export function safeDocId(...parts: string[]): string {
     .join('__');
 }
 
+/**
+ * Firestore `undefined` değerleri kabul etmez. Yazımdan önce nesneden temizler.
+ * Aksi halde `setDoc` "Function setDoc() called with invalid data" fırlatır.
+ */
+function stripUndefined<T extends object>(obj: T): T {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (value !== undefined) result[key] = value;
+  }
+  return result as T;
+}
+
 interface UseFirestoreCollectionResult<T> {
   items: readonly T[];
   ready: boolean;
@@ -71,7 +83,7 @@ export function useFirestoreCollection<T extends { id: string }>(
   async function upsert(item: T): Promise<void> {
     const db = getDb();
     const ref = doc(db, householdDocPath(collectionName, item.id));
-    await setDoc(ref, item);
+    await setDoc(ref, stripUndefined(item));
   }
 
   async function remove(id: string): Promise<void> {
@@ -129,7 +141,7 @@ export function useFirestoreDocument<T>(
   async function save(next: T): Promise<void> {
     const db = getDb();
     const ref = doc(db, householdDocPath(collectionName, docId));
-    await setDoc(ref, next as Record<string, unknown>);
+    await setDoc(ref, stripUndefined(next as Record<string, unknown>));
   }
 
   return { data, ready, save };
