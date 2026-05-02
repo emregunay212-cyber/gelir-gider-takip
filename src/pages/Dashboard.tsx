@@ -33,29 +33,25 @@ function sumMonthlyDebtsActive(closedSet: Set<string>): number {
   ).reduce((acc, d) => acc + d.monthlyPayment, 0);
 }
 
+/**
+ * Aylık tahmini gelir — SADECE düzenli (monthly) maaşlar.
+ * Kurs ücreti, maç ücreti gibi seasonal/one-time gelirler "henüz gelmedi"
+ * varsayılır; gelince kullanıcı "+ Gelen Para" veya "Yattı" ile manuel ekler.
+ */
 function estimatedMonthlyIncome(
   resolveAmount: (name: string, base: number, month: string) => number,
   currentMonth: string,
 ): number {
   return SEED_INCOMES.reduce((acc, income) => {
+    if (income.frequency !== 'monthly') return acc;
+
     const base =
       income.amountFixed ??
       (income.amountMin != null && income.amountMax != null
         ? (income.amountMin + income.amountMax) / 2
         : 0);
 
-    if (income.frequency === 'monthly') {
-      return acc + resolveAmount(income.name, base, currentMonth);
-    }
-
-    if (income.frequency === 'seasonal_range' && income.activeMonths) {
-      const active = income.activeMonths.some(
-        (r) => currentMonth >= r.startMonth && currentMonth <= r.endMonth,
-      );
-      if (active) return acc + resolveAmount(income.name, base, currentMonth);
-    }
-
-    return acc;
+    return acc + resolveAmount(income.name, base, currentMonth);
   }, 0);
 }
 

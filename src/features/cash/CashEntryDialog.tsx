@@ -25,6 +25,9 @@ interface Props {
   direction: CashEntryDirection;
   open: boolean;
   onClose: () => void;
+  defaultAmount?: number;
+  defaultDescription?: string;
+  defaultAccountName?: string;
 }
 
 const DIRECTION_LABEL: Record<CashEntryDirection, string> = {
@@ -37,24 +40,39 @@ const DIRECTION_HELP: Record<CashEntryDirection, string> = {
   out: 'Plan dışı gider — kasadan düşülür.',
 };
 
-export function CashEntryDialog({ direction, open, onClose }: Props) {
+export function CashEntryDialog({
+  direction,
+  open,
+  onClose,
+  defaultAmount,
+  defaultDescription,
+  defaultAccountName,
+}: Props) {
   const { addEntry } = useCash();
 
-  const defaultAccount =
+  const fallbackAccount =
     SEED_ACCOUNTS.find((a) => a.type === 'cash')?.name ??
     SEED_ACCOUNTS[0]?.name ?? '';
 
-  const [amount, setAmount] = useState<number>(0);
-  const [description, setDescription] = useState<string>('');
-  const [accountName, setAccountName] = useState<string>(defaultAccount);
+  const [amount, setAmount] = useState<number>(defaultAmount ?? 0);
+  const [description, setDescription] = useState<string>(defaultDescription ?? '');
+  const [accountName, setAccountName] = useState<string>(
+    defaultAccountName ?? fallbackAccount,
+  );
 
   useEffect(() => {
     if (open) {
-      setAmount(0);
-      setDescription('');
-      setAccountName(defaultAccount);
+      setAmount(defaultAmount ?? 0);
+      setDescription(defaultDescription ?? '');
+      setAccountName(defaultAccountName ?? fallbackAccount);
     }
-  }, [open, defaultAccount]);
+  }, [
+    open,
+    defaultAmount,
+    defaultDescription,
+    defaultAccountName,
+    fallbackAccount,
+  ]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

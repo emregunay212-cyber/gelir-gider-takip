@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Banknote, Check } from 'lucide-react';
+import { Banknote, Check, Clock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -7,6 +7,7 @@ import { SEED_INCOMES } from '@/db/seed';
 import { useSalary } from './SalaryProvider';
 import { formatTRY, monthKey } from '@/lib/format';
 import { SalaryReceivedDialog } from './SalaryReceivedDialog';
+import { CashEntryDialog } from '@/features/cash/CashEntryDialog';
 
 interface PendingItem {
   incomeName: string;
@@ -14,6 +15,13 @@ interface PendingItem {
   accountName: string;
   ownerKey: 'emre' | 'sila';
   dayOfMonth: number;
+}
+
+interface ExtraIncome {
+  name: string;
+  expectedAmount: number;
+  description: string;
+  accountName?: string;
 }
 
 const ACCOUNT_BY_OWNER: Record<'emre' | 'sila', string> = {
@@ -40,9 +48,61 @@ function getMonthlySalaries(): PendingItem[] {
   });
 }
 
+/**
+ * Bu ay aktif olan dönemsel/tek seferlik bekleyen gelirler.
+ * Şimdiye kadar manuel olarak alınmış sayılmıyor; gelince "Geldi" butonu ile
+ * Gelen Para olarak girilir.
+ */
+function getExtraPendingIncomes(currentMonth: string): ExtraIncome[] {
+  const items: ExtraIncome[] = [];
+
+  for (const income of SEED_INCOMES) {
+    if (income.frequency === 'seasonal_range' && income.activeMonths) {
+      const active = income.activeMonths.some(
+        (r) => currentMonth >= r.startMonth && currentMonth <= r.endMonth,
+      );
+      if (!active) continue;
+      const expected =
+        income.amountFixed ??
+        (income.amountMin != null && income.amountMax != null
+          ? (income.amountMin + income.amountMax) / 2
+          : 0);
+      items.push({
+        name: income.name,
+        expectedAmount: expected,
+        description: `${income.name} (${currentMonth})`,
+        accountName: ACCOUNT_BY_OWNER[income.ownerKey],
+      });
+    } else if (
+      income.frequency === 'one_time' &&
+      income.oneTimeOccurrences &&
+      income.oneTimeOccurrences.length > 0
+    ) {
+      const perOccurrence = income.oneTimeOccurrences[0]?.amount ?? 0;
+      const totalRemaining = income.oneTimeOccurrences.reduce(
+        (s, o) => s + o.amount,
+        0,
+      );
+      items.push({
+        name: income.name,
+        expectedAmount: perOccurrence,
+        description: `${income.name} (1 adet)`,
+        accountName: ACCOUNT_BY_OWNER[income.ownerKey],
+      });
+      // Toplam bilgi notu için tek satır yeter — adet bilgisi name'de yok ama
+      // expectedAmount tek adet, hatırlatma için info satırında belirtilir.
+      void totalRemaining;
+    }
+  }
+
+  return items;
+}
+
 export function UpcomingIncomeCard() {
   const { isReceived, getReceipt, removeReceipt } = useSalary();
   const [openItem, setOpenItem] = useState<PendingItem | null>(null);
+  const [openExtra, setOpenExtra] = useState<ExtraIncome | null>(null);
+
   const currentMonth = monthKey();
   const all = getMonthlySalaries();
   const pending = all.filter(
@@ -51,8 +111,11 @@ export function UpcomingIncomeCard() {
   const received = all.filter((item) =>
     isReceived(item.incomeName, currentMonth),
   );
+  const extras = getExtraPendingIncomes(currentMonth);
 
-  if (pending.length === 0 && received.length === 0) return null;
+  if (pending.length === 0 && received.length === 0 && extras.length === 0) {
+    return null;
+  }
 
   return (
     <>
@@ -81,7 +144,7 @@ export function UpcomingIncomeCard() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-primary tabular-nums">
+                    <span className="text-sm font-semibold tabular-nums text-primary">
                       ~{formatTRY(item.defaultAmount)}
                     </span>
                     <Button
@@ -148,6 +211,48 @@ export function UpcomingIncomeCard() {
               })}
             </ul>
           )}
+
+          {extras.length > 0 && (
+            <>
+              <Separator className="bg-primary/15" />
+              <div>
+                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-300">
+                  <Clock className="size-3" />
+                  Bekleyen Ek Gelirler
+                </div>
+                <ul className="space-y-2">
+                  {extras.map((item) => (
+                    <li
+                      key={item.name}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {item.name}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          henüz alınmadı · {item.accountName ?? 'kasaya'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold tabular-nums text-amber-300">
+                          ~{formatTRY(item.expectedAmount)}
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setOpenExtra(item)}
+                        >
+                          Geldi
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -158,6 +263,17 @@ export function UpcomingIncomeCard() {
           defaultAmount={openItem.defaultAmount}
           open
           onClose={() => setOpenItem(null)}
+        />
+      )}
+
+      {openExtra && (
+        <CashEntryDialog
+          direction="in"
+          open
+          onClose={() => setOpenExtra(null)}
+          defaultAmount={openExtra.expectedAmount}
+          defaultDescription={openExtra.description}
+          defaultAccountName={openExtra.accountName}
         />
       )}
     </>
