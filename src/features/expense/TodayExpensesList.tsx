@@ -1,4 +1,6 @@
-import { Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Trash2, ChevronDown } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Badge } from '@/components/ui/badge';
 import { useExpense } from './ExpenseProvider';
 import { formatTRY } from '@/lib/format';
@@ -35,8 +37,23 @@ const SPENDER_BADGE: Record<'emre' | 'sila', string> = {
   sila: 'bg-[var(--color-sila)]/15 text-[var(--color-sila)] border-[var(--color-sila)]/30',
 };
 
+const TIME_FORMATTER = new Intl.DateTimeFormat('tr-TR', {
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+function formatTime(iso: string): string {
+  try {
+    return TIME_FORMATTER.format(new Date(iso));
+  } catch {
+    return '';
+  }
+}
+
 export function TodayExpensesList() {
   const { todaysExpenses, removeExpense } = useExpense();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const items = [...todaysExpenses()].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
   );
@@ -55,55 +72,131 @@ export function TodayExpensesList() {
         Bugünkü Harcamalar · {items.length} adet
       </p>
       <ul className="space-y-1.5">
-        {items.map((expense) => (
-          <li
-            key={expense.id}
-            className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2.5"
-          >
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="text-xl" aria-hidden>
-                {CATEGORY_EMOJI[expense.category]}
-              </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <Badge
-                    variant="outline"
-                    className={`px-1.5 py-0 text-[10px] font-medium ${SPENDER_BADGE[expense.spender]}`}
-                  >
-                    {expense.spender === 'emre' ? 'Emre' : 'Sıla'}
-                  </Badge>
-                  <p className="truncate text-sm font-medium">
-                    {CATEGORY_LABEL[expense.category]}
-                    {expense.description && (
-                      <span className="ml-1 font-normal text-muted-foreground">
-                        · {expense.description}
-                      </span>
+        {items.map((expense) => {
+          const isExpanded = expandedId === expense.id;
+          const time = formatTime(expense.createdAt);
+
+          return (
+            <li
+              key={expense.id}
+              className="overflow-hidden rounded-lg border border-border bg-card"
+            >
+              <div className="flex items-start justify-between gap-2 px-3 py-2.5">
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <span className="mt-0.5 text-xl" aria-hidden>
+                    {CATEGORY_EMOJI[expense.category]}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <Badge
+                        variant="outline"
+                        className={`px-1.5 py-0 text-[10px] font-medium ${SPENDER_BADGE[expense.spender]}`}
+                      >
+                        {expense.spender === 'emre' ? 'Emre' : 'Sıla'}
+                      </Badge>
+                      <p
+                        className={`text-sm font-medium ${isExpanded ? 'break-words' : 'truncate'}`}
+                      >
+                        {CATEGORY_LABEL[expense.category]}
+                        {expense.description && (
+                          <span className="ml-1 font-normal text-muted-foreground">
+                            · {expense.description}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    {expense.accountName && !isExpanded && (
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {expense.accountName}
+                      </p>
                     )}
-                  </p>
+                  </div>
                 </div>
-                {expense.accountName && (
-                  <p className="text-[11px] text-muted-foreground">
-                    {expense.accountName}
-                  </p>
-                )}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedId(isExpanded ? null : expense.id)
+                    }
+                    aria-label={isExpanded ? 'Detayı kapat' : 'Detayı göster'}
+                    className="flex items-center gap-1 rounded-md px-2 py-1 text-base font-semibold tabular-nums text-[var(--color-danger)] transition-colors hover:bg-muted"
+                  >
+                    −{formatTRY(expense.amount)}
+                    <motion.span
+                      animate={{ rotate: isExpanded ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-muted-foreground"
+                    >
+                      <ChevronDown className="size-3.5" />
+                    </motion.span>
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold tabular-nums text-[var(--color-danger)]">
-                −{formatTRY(expense.amount)}
-              </span>
-              <button
-                type="button"
-                onClick={() => removeExpense(expense.id)}
-                aria-label="Sil"
-                className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-[var(--color-danger)]"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            </div>
-          </li>
-        ))}
+
+              <AnimatePresence initial={false}>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className="space-y-1.5 border-t border-border bg-muted/20 px-3 py-2.5 text-[11px]">
+                      {expense.description && (
+                        <DetailRow
+                          label="📝 Açıklama"
+                          value={expense.description}
+                        />
+                      )}
+                      <DetailRow
+                        label="🏷 Kategori"
+                        value={CATEGORY_LABEL[expense.category]}
+                      />
+                      <DetailRow
+                        label="👤 Kim"
+                        value={expense.spender === 'emre' ? 'Emre' : 'Sıla'}
+                      />
+                      {expense.accountName && (
+                        <DetailRow
+                          label="🏦 Hesap"
+                          value={expense.accountName}
+                        />
+                      )}
+                      {time && <DetailRow label="🕒 Saat" value={time} />}
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => removeExpense(expense.id)}
+                          aria-label="Harcamayı sil"
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-[var(--color-danger)]"
+                        >
+                          <Trash2 className="size-3" />
+                          Sil
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </li>
+          );
+        })}
       </ul>
+    </div>
+  );
+}
+
+interface DetailRowProps {
+  label: string;
+  value: string;
+}
+
+function DetailRow({ label, value }: DetailRowProps) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="shrink-0 text-muted-foreground">{label}:</span>
+      <span className="break-words text-foreground">{value}</span>
     </div>
   );
 }
