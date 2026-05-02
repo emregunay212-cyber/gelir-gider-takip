@@ -2,7 +2,7 @@ import { motion } from 'motion/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { CountUp } from '@/components/AnimatedNumber';
-import { formatTRY, monthKey } from '@/lib/format';
+import { formatTRY, monthKey, getDaysInMonth } from '@/lib/format';
 import {
   SEED_ACCOUNTS,
   SEED_DEBTS,
@@ -81,12 +81,18 @@ export default function Dashboard() {
   const monthlyDebts = sumMonthlyDebtsActive(closedSet);
   const monthlyBills = billsMonthly();
   const monthlyIncome = estimatedMonthlyIncome(resolveAmount, monthKey());
-  const monthlyDailyBudget = dailyLimit * 30;
-  const projectedSurplus =
-    monthlyIncome - monthlyDebts - monthlyBills - monthlyDailyBudget;
 
   const thisMonthSpent = expenseMonthly(monthKey());
   const thisMonthSavings = monthlySavings(monthKey(), dailyLimit);
+
+  // Aylık projeksiyon: geçen gün gerçek harcama + kalan gün × limit
+  const passedDays = new Date().getDate();
+  const totalDays = getDaysInMonth(monthKey());
+  const remainingDays = Math.max(0, totalDays - passedDays);
+  const projectedRemainingDaily = remainingDays * dailyLimit;
+  const projectedTotalDaily = thisMonthSpent + projectedRemainingDaily;
+  const projectedSurplus =
+    monthlyIncome - monthlyDebts - monthlyBills - projectedTotalDaily;
 
   const cardMotion = {
     initial: { opacity: 0, y: 16 },
@@ -171,9 +177,15 @@ export default function Dashboard() {
               <Row label="Borç ödemeleri" value={-monthlyDebts} />
               <Row label="Faturalar" value={-monthlyBills} />
               <Row
-                label={`Günlük harcama (${formatTRY(dailyLimit)} × 30)`}
-                value={-monthlyDailyBudget}
+                label={`Bu ay harcanan (${passedDays} gün)`}
+                value={-thisMonthSpent}
               />
+              {remainingDays > 0 && (
+                <Row
+                  label={`Kalan ${remainingDays} gün × ${formatTRY(dailyLimit)}`}
+                  value={-projectedRemainingDaily}
+                />
+              )}
               <Separator className="my-2" />
               <Row
                 label="Beklenen aylık tasarruf"
