@@ -17,9 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useExpense, type ExpenseSpender } from './ExpenseProvider';
+import {
+  useExpense,
+  type ExpenseEntry,
+  type ExpenseSpender,
+} from './ExpenseProvider';
 import { SEED_ACCOUNTS } from '@/db/seed';
-import { todayKey, formatTRY } from '@/lib/format';
+import { todayKey, daysAgoKey, formatTRY } from '@/lib/format';
 import type { ExpenseCategory } from '@/types';
 import { useCurrentUser } from '../identity/CurrentUserProvider';
 
@@ -34,6 +38,8 @@ interface Props {
     spender?: ExpenseSpender;
     description?: string;
   };
+  /** Mevcut harcamayı düzenleme modu için ID/data. */
+  editingExpense?: ExpenseEntry;
 }
 
 interface CategoryOption {
@@ -54,41 +60,95 @@ const CATEGORIES: readonly CategoryOption[] = [
   { value: 'other', label: 'Diğer', emoji: '📋' },
 ];
 
-export function AddExpenseDialog({ open, onClose, defaults }: Props) {
-  const { addExpense } = useExpense();
+/** Geçmiş 1 hafta içinde mi (bugün dahil)? */
+function isWithinLastWeek(date: string): boolean {
+  return date >= daysAgoKey(7) && date <= todayKey();
+}
+
+export function AddExpenseDialog({
+  open,
+  onClose,
+  defaults,
+  editingExpense,
+}: Props) {
+  const { addExpense, updateExpense } = useExpense();
   const { current } = useCurrentUser();
+
+  const isEditing = editingExpense !== undefined;
 
   const [spender, setSpender] = useState<ExpenseSpender>(current);
   const [amount, setAmount] = useState<number>(0);
   const [category, setCategory] = useState<ExpenseCategory>('grocery');
   const [description, setDescription] = useState<string>('');
   const [accountName, setAccountName] = useState<string>('');
+  const [date, setDate] = useState<string>(() => todayKey());
+
+  const minDate = daysAgoKey(7);
+  const maxDate = todayKey();
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+
+    if (editingExpense) {
+      setSpender(editingExpense.spender);
+      setAmount(editingExpense.amount);
+      setCategory(editingExpense.category);
+      setDescription(editingExpense.description ?? '');
+      setAccountName(editingExpense.accountName ?? '');
+      setDate(editingExpense.date);
+    } else {
       setSpender(defaults?.spender ?? current);
       setAmount(defaults?.amount ?? 0);
       setCategory(defaults?.category ?? 'grocery');
       setDescription(defaults?.description ?? '');
       setAccountName(defaults?.accountName ?? '');
+      setDate(todayKey());
     }
-  }, [open, current, defaults]);
+  }, [open, current, defaults, editingExpense]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!Number.isFinite(amount) || amount <= 0) return;
-    addExpense({
-      spender,
-      amount,
-      category,
-      description: description.trim() || undefined,
-      accountName: accountName || undefined,
-      date: todayKey(),
-    });
+
+    // Tarih validasyonu — gelecek yasak, 1 haftadan eski yasak
+    // (Düzenlemede mevcut tarih korunabilir)
+    if (!isEditing && !isWithinLastWeek(date)) {
+      toast.error('Geçersiz tarih', {
+        description: 'Sadece son 1 hafta içindeki bir tarih seçebilirsin.',
+      });
+      return;
+    }
+
+    const trimmedDesc = description.trim();
     const catLabel = CATEGORIES.find((c) => c.value === category)?.label ?? '';
-    toast.success(`${formatTRY(amount)} harcama eklendi`, {
-      description: `${spender === 'emre' ? 'Emre' : 'Sıla'} · ${catLabel}${description ? ` · ${description}` : ''}`,
-    });
+    const spenderLabel = spender === 'emre' ? 'Emre' : 'Sıla';
+
+    if (isEditing && editingExpense) {
+      updateExpense(editingExpense.id, {
+        spender,
+        amount,
+        category,
+        description: trimmedDesc || undefined,
+        accountName: accountName || undefined,
+        date,
+      });
+      toast.success('Harcama güncellendi ✏️', {
+        description: `${formatTRY(amount)} · ${spenderLabel} · ${catLabel}`,
+      });
+    } else {
+      addExpense({
+        spender,
+        amount,
+        category,
+        description: trimmedDesc || undefined,
+        accountName: accountName || undefined,
+        date,
+      });
+      toast.success(`${formatTRY(amount)} harcama eklendi`, {
+        description: `${spenderLabel} · ${catLabel}${trimmedDesc ? ` · ${trimmedDesc}` : ''}`,
+      });
+    }
+
     onClose();
   }
 
@@ -96,9 +156,13 @@ export function AddExpenseDialog({ open, onClose, defaults }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Harcama Ekle</DialogTitle>
+          <DialogTitle>
+            {isEditing ? 'Harcama Düzenle' : 'Harcama Ekle'}
+          </DialogTitle>
           <DialogDescription>
-            Bugün için kaydedilir, günlük limitten ve kasadan düşülür.
+            {isEditing
+              ? 'Mevcut harcama bilgilerini güncelle.'
+              : 'Bugün için kaydedilir; tarihi değiştirip son 1 haftaya yazabilirsin.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -139,6 +203,22 @@ export function AddExpenseDialog({ open, onClose, defaults }: Props) {
           </div>
 
           <div className="space-y-1.5">
+            <Label htmlFor="expense-date">Tarih</Label>
+            <Input
+              id="expense-date"
+              type="date"
+              value={date}
+              min={minDate}
+              max={maxDate}
+              onChange={(event) => setDate(event.target.value)}
+              className="h-12"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Default bugün · sadece son 1 hafta seçilebilir · gelecek yok
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
             <Label>Kategori</Label>
             <Select
               value={category}
@@ -165,7 +245,7 @@ export function AddExpenseDialog({ open, onClose, defaults }: Props) {
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="Örn: Migros, Shell, BIM"
-              maxLength={80}
+              maxLength={120}
             />
           </div>
 
@@ -205,7 +285,7 @@ export function AddExpenseDialog({ open, onClose, defaults }: Props) {
               disabled={!Number.isFinite(amount) || amount <= 0}
               className="flex-1"
             >
-              Kaydet
+              {isEditing ? 'Güncelle' : 'Kaydet'}
             </Button>
           </div>
         </form>

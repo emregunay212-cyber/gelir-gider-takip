@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Trash2, ChevronDown } from 'lucide-react';
+import { Trash2, Pencil, ChevronDown } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Badge } from '@/components/ui/badge';
-import { useExpense } from './ExpenseProvider';
+import { useExpense, type ExpenseEntry } from './ExpenseProvider';
+import { AddExpenseDialog } from './AddExpenseDialog';
 import { formatTRY } from '@/lib/format';
 import type { ExpenseCategory } from '@/types';
 
@@ -53,6 +54,7 @@ function formatTime(iso: string): string {
 export function TodayExpensesList() {
   const { todaysExpenses, removeExpense } = useExpense();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ExpenseEntry | null>(null);
 
   const items = [...todaysExpenses()].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
@@ -164,7 +166,19 @@ export function TodayExpensesList() {
                         />
                       )}
                       {time && <DetailRow label="🕒 Saat" value={time} />}
-                      <div className="flex justify-end pt-1">
+                      <div className="flex justify-end gap-1 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditing(expense);
+                            setExpandedId(null);
+                          }}
+                          aria-label="Düzenle"
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                        >
+                          <Pencil className="size-3" />
+                          Düzenle
+                        </button>
                         <button
                           type="button"
                           onClick={() => removeExpense(expense.id)}
@@ -183,6 +197,12 @@ export function TodayExpensesList() {
           );
         })}
       </ul>
+
+      <AddExpenseDialog
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        editingExpense={editing ?? undefined}
+      />
     </div>
   );
 }

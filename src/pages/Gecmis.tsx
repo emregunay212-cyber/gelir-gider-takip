@@ -1,8 +1,15 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Trash2, ChevronDown } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Pencil,
+  ChevronDown,
+} from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { AddExpenseDialog } from '@/features/expense/AddExpenseDialog';
 import {
   formatTRY,
   monthKey,
@@ -80,6 +87,7 @@ export default function Gecmis() {
   const { entries, monthlyTotal, monthlySavings, removeExpense } = useExpense();
   const [month, setMonth] = useState<string>(() => monthKey());
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ExpenseEntry | null>(null);
 
   const inMonth = useMemo(
     () => entries.filter((e) => e.date.startsWith(month)),
@@ -413,7 +421,19 @@ export default function Gecmis() {
                                 {time && (
                                   <DetailRow label="🕒 Saat" value={time} />
                                 )}
-                                <div className="flex justify-end pt-1">
+                                <div className="flex justify-end gap-1 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditing(expense);
+                                      setExpandedId(null);
+                                    }}
+                                    aria-label="Düzenle"
+                                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                                  >
+                                    <Pencil className="size-3" />
+                                    Düzenle
+                                  </button>
                                   <button
                                     type="button"
                                     onClick={() => removeExpense(expense.id)}
@@ -437,6 +457,12 @@ export default function Gecmis() {
           ))}
         </div>
       )}
+
+      <AddExpenseDialog
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        editingExpense={editing ?? undefined}
+      />
     </section>
   );
 }

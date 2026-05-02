@@ -86,3 +86,10 @@ export function dayLabel(date: string): string {
   return `${day} ${monthName} ${dayName}`;
 }
 
+/** Verilen referans tarihten n gün önceki tarihi YYYY-MM-DD olarak döndürür. */
+export function daysAgoKey(n: number, reference: Date = new Date()): string {
+  const d = new Date(reference);
+  d.setDate(d.getDate() - n);
+  return todayKey(d);
+}
+

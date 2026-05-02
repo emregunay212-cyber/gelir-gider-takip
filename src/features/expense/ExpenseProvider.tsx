@@ -27,6 +27,7 @@ export interface ExpenseEntry {
 interface ExpenseContextValue {
   entries: readonly ExpenseEntry[];
   addExpense: (input: Omit<ExpenseEntry, 'id' | 'createdAt'>) => void;
+  updateExpense: (id: string, updates: Partial<Omit<ExpenseEntry, 'id' | 'createdAt'>>) => void;
   removeExpense: (id: string) => void;
   todaysExpenses: () => readonly ExpenseEntry[];
   todaysTotal: () => number;
@@ -176,6 +177,38 @@ export function ExpenseProvider({ children }: ProviderProps) {
           const message =
             err instanceof Error ? err.message : 'Bilinmeyen hata';
           toast.error('Harcama kaydedilemedi', { description: message });
+        });
+      },
+      updateExpense: (id, updates) => {
+        const existing = items.find((e) => e.id === id);
+        if (!existing) {
+          toast.error('Düzenlenecek harcama bulunamadı');
+          return;
+        }
+        // Tüm alanları yeniden inşa et — undefined sızması olmasın
+        const merged: ExpenseEntry = {
+          id: existing.id,
+          spender: updates.spender ?? existing.spender,
+          date: updates.date ?? existing.date,
+          amount: updates.amount ?? existing.amount,
+          category: updates.category ?? existing.category,
+          createdAt: existing.createdAt,
+        };
+        const description =
+          updates.description !== undefined
+            ? updates.description
+            : existing.description;
+        const accountName =
+          updates.accountName !== undefined
+            ? updates.accountName
+            : existing.accountName;
+        if (description) merged.description = description;
+        if (accountName) merged.accountName = accountName;
+
+        upsert(merged).catch((err: unknown) => {
+          const message =
+            err instanceof Error ? err.message : 'Bilinmeyen hata';
+          toast.error('Düzenleme kaydedilemedi', { description: message });
         });
       },
       removeExpense: (id) => {
