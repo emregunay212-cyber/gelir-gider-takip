@@ -1,5 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { RotateCcw, Download, FileSpreadsheet, Bell, BellOff } from 'lucide-react';
+import {
+  RotateCcw,
+  Download,
+  FileSpreadsheet,
+  Bell,
+  BellOff,
+  RefreshCw,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +19,7 @@ import {
   requestNotificationPermission,
   showNotification,
 } from '@/lib/notifications';
+import { checkForAppUpdate } from '@/components/PWAUpdater';
 
 const STORAGE_KEYS_TO_CLEAR = [
   'salary_receipts_v1',
@@ -43,6 +51,7 @@ function clearAllLocalState(): void {
 
 export default function Ayarlar() {
   const [confirming, setConfirming] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const { downloadJson, downloadExpensesCsv } = useDataExport();
 
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
@@ -116,6 +125,28 @@ export default function Ayarlar() {
     }
   }
 
+  async function handleCheckUpdate() {
+    setCheckingUpdate(true);
+    try {
+      const hasUpdate = await checkForAppUpdate();
+      if (hasUpdate) {
+        toast.success('Yeni sürüm bulundu 🎉', {
+          description: 'Yukarıdaki "Güncelle" toast\'una tıkla.',
+        });
+      } else {
+        toast.info('Zaten en güncel sürüm', {
+          description: 'Yeni sürüm yayınlandığında otomatik bildirim gelir.',
+        });
+      }
+    } catch (err) {
+      toast.error('Kontrol başarısız', {
+        description: err instanceof Error ? err.message : 'Bilinmeyen hata',
+      });
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }
+
   function handleReset() {
     if (!confirming) {
       setConfirming(true);
@@ -155,6 +186,25 @@ export default function Ayarlar() {
             Şu an: <span className="font-medium text-foreground">Koyu (Dark)</span> ·
             açık tema seçimi sonraki fazda
           </p>
+        </SettingsCard>
+
+        <SettingsCard title="Uygulama Güncellemesi">
+          <p className="text-sm text-muted-foreground">
+            Yeni sürüm yayınlandığında saatte bir otomatik kontrol edilir.
+            Hemen kontrol etmek istersen aşağıdaki butona tıkla.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCheckUpdate}
+            disabled={checkingUpdate}
+            className="mt-3 w-full"
+          >
+            <RefreshCw
+              className={`size-4 ${checkingUpdate ? 'animate-spin' : ''}`}
+            />
+            {checkingUpdate ? 'Kontrol ediliyor...' : 'Güncellemeleri Kontrol Et'}
+          </Button>
         </SettingsCard>
 
         <SettingsCard title="Bildirimler">

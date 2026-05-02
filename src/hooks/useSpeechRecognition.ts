@@ -44,6 +44,12 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
   const supported = Recognition !== undefined;
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // useRef gerek: start() callback'i useCallback deps'i ile memo'lanır,
+  // dolayısıyla currentSegments state'i closure'da stale kalır. Ref ile
+  // her zaman güncel değeri okuruz.
+  const currentSegmentsRef = useRef<string[]>([]);
+  const committedTextRef = useRef<string>('');
+
   const [listening, setListening] = useState(false);
   const [committedText, setCommittedText] = useState('');
   const [currentSegments, setCurrentSegments] = useState<string[]>([]);
@@ -64,6 +70,8 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
   }, []);
 
   const reset = useCallback(() => {
+    committedTextRef.current = '';
+    currentSegmentsRef.current = [];
     setCommittedText('');
     setCurrentSegments([]);
     setInterimText('');
@@ -79,11 +87,19 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
 
     setError(null);
 
-    // Önceki session'da current segmentler varsa committed'a taşı
-    setCommittedText((prev) => {
-      const current = currentSegments.join(' ').trim();
-      return [prev, current].filter(Boolean).join(' ').trim();
-    });
+    // Önceki session'da current segmentler varsa committed'a taşı.
+    // Ref'ten okuyoruz çünkü useCallback deps'i memo'lanmış,
+    // state closure'u stale olabilir.
+    const currentJoined = currentSegmentsRef.current.join(' ').trim();
+    if (currentJoined) {
+      const nextCommitted = [committedTextRef.current, currentJoined]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      committedTextRef.current = nextCommitted;
+      setCommittedText(nextCommitted);
+    }
+    currentSegmentsRef.current = [];
     setCurrentSegments([]);
     setInterimText('');
 
@@ -135,6 +151,7 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
         }
       }
 
+      currentSegmentsRef.current = segments;
       setCurrentSegments(segments);
       setInterimText(lastInterim);
     };
@@ -148,7 +165,6 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
       onError?.(message);
       setListening(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Recognition, lang, continuous, onError]);
 
   useEffect(() => {

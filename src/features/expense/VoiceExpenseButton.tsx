@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Mic, MicOff, Check, Plus, RotateCcw, X } from 'lucide-react';
+import { Mic, MicOff, Check, RotateCcw, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -73,10 +73,6 @@ export function VoiceExpenseButton() {
     reset();
     setOpen(true);
     toast.success('Anlaşıldı 🎤', { description: text });
-  }
-
-  function handleContinue() {
-    if (!listening) start();
   }
 
   function handleReset() {
@@ -185,8 +181,8 @@ export function VoiceExpenseButton() {
 
               <p className="text-center text-xs text-muted-foreground">
                 {listening
-                  ? '🔴 Dinliyorum… mikrofona tıklayarak duraklatabilirsin'
-                  : 'Mikrofona tıklayarak konuşmaya devam et'}
+                  ? '🔴 Dinliyorum… mikrofona tıklayarak duraklat'
+                  : 'Mikrofona tıkla, konuşmaya devam et — metin korunur'}
               </p>
 
               {/* Canlı transcript kutusu */}
@@ -208,7 +204,7 @@ export function VoiceExpenseButton() {
               </div>
 
               {/* Aksiyon butonları */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -219,18 +215,6 @@ export function VoiceExpenseButton() {
                 >
                   <RotateCcw className="size-4" />
                   Yeniden
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleContinue}
-                  disabled={listening}
-                  className="h-12"
-                  title="Konuşmaya ekleme yap"
-                >
-                  <Plus className="size-4" />
-                  Devam
                 </Button>
                 <Button
                   type="button"
