@@ -8,6 +8,7 @@ import Faturalar from './pages/Faturalar';
 import Gecmis from './pages/Gecmis';
 import Ayarlar from './pages/Ayarlar';
 import { Toaster } from '@/components/ui/sonner';
+import { PWAUpdater } from '@/components/PWAUpdater';
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         </Route>
       </Routes>
       <Toaster position="top-center" richColors />
+      <PWAUpdater />
     </>
   );
 }
