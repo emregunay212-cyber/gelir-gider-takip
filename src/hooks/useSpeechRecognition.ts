@@ -62,6 +62,13 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
 
     setError(null);
 
+    // Önceki recognition varsa kapat — race condition'ı önler
+    try {
+      recognitionRef.current?.abort();
+    } catch {
+      // sessizce geç
+    }
+
     const rec = new Recognition();
     rec.lang = lang;
     rec.continuous = continuous;
@@ -76,21 +83,39 @@ export function useSpeechRecognition(options: Options = {}): State & Controls {
       onError?.(event.error);
     };
     rec.onresult = (event) => {
-      // Web Speech API event.results'ta SESSION'IN TAMAMI vardır.
-      // Her tetikte sıfırdan yeniden hesapla — duplicate önlenir.
-      let nextFinal = '';
-      let nextInterim = '';
+      // Bazı tarayıcılar (Mobile Chrome Türkçe) continuous modda her segment
+      // güncellendikçe AYNI segmenti tekrar tekrar isFinal olarak yollar
+      // ("215" → "215 lira" → "215 lira çiğ köfte" → ...).
+      // Bu yüzden segmentleri akıllıca birleştiriyoruz: yeni segment öncekini
+      // prefix olarak içeriyorsa replace, yoksa yeni segment olarak ekle.
+      const segments: string[] = [];
+      let lastInterim = '';
+
       for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
-        const text = result[0].transcript;
+        const text = result[0].transcript.trim();
+        if (!text) continue;
+
         if (result.isFinal) {
-          nextFinal += (nextFinal ? ' ' : '') + text.trim();
+          const prev = segments[segments.length - 1];
+          if (
+            prev &&
+            (text.startsWith(prev) || prev.startsWith(text))
+          ) {
+            // Overlap var — daha uzun olanı tut (kümülatif güncelleme)
+            segments[segments.length - 1] =
+              text.length >= prev.length ? text : prev;
+          } else if (prev !== text) {
+            // Bağımsız yeni segment
+            segments.push(text);
+          }
         } else {
-          nextInterim = text.trim();
+          lastInterim = text;
         }
       }
-      setFinalText(nextFinal);
-      setInterimText(nextInterim);
+
+      setFinalText(segments.join(' '));
+      setInterimText(lastInterim);
     };
 
     recognitionRef.current = rec;
