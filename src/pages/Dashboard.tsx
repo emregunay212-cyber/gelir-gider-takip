@@ -1,20 +1,22 @@
-import { formatTRY, monthKey } from '../lib/format';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { formatTRY, monthKey } from '@/lib/format';
 import {
   SEED_ACCOUNTS,
   SEED_DEBTS,
   SEED_HOUSEHOLD,
   SEED_INCOMES,
-} from '../db/seed';
-import { useSalary } from '../features/income/SalaryProvider';
-import { UpcomingIncomeCard } from '../features/income/UpcomingIncomeCard';
-import { useCash } from '../features/cash/CashProvider';
-import { QuickCashButtons } from '../features/cash/QuickCashButtons';
-import { useExpense } from '../features/expense/ExpenseProvider';
-import { TodaySpendingCard } from '../features/expense/TodaySpendingCard';
-import { TodayExpensesList } from '../features/expense/TodayExpensesList';
-import { useBills } from '../features/bills/BillsProvider';
-import { useDebtPayment } from '../features/debt/DebtPaymentProvider';
-import { useIncomeOverrides } from '../features/income-overrides/IncomeOverridesProvider';
+} from '@/db/seed';
+import { useSalary } from '@/features/income/SalaryProvider';
+import { UpcomingIncomeCard } from '@/features/income/UpcomingIncomeCard';
+import { useCash } from '@/features/cash/CashProvider';
+import { QuickCashButtons } from '@/features/cash/QuickCashButtons';
+import { useExpense } from '@/features/expense/ExpenseProvider';
+import { TodaySpendingCard } from '@/features/expense/TodaySpendingCard';
+import { TodayExpensesList } from '@/features/expense/TodayExpensesList';
+import { useBills } from '@/features/bills/BillsProvider';
+import { useDebtPayment } from '@/features/debt/DebtPaymentProvider';
+import { useIncomeOverrides } from '@/features/income-overrides/IncomeOverridesProvider';
 
 function sumAccountBalances(): number {
   return SEED_ACCOUNTS.filter((a) => a.type !== 'virtual_kasa').reduce(
@@ -92,17 +94,19 @@ export default function Dashboard() {
       <TodayExpensesList />
 
       {/* 3. Kasa (toplam param) */}
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
-          Kasa (toplam param)
-        </p>
-        <p className="mt-1 text-3xl font-bold text-[var(--color-text)]">
-          {formatTRY(totalCash)}
-        </p>
-        <p className="mt-1 text-xs text-[var(--color-muted)]">
-          Tüm banka hesapları + evdeki nakit
-        </p>
-      </div>
+      <Card>
+        <CardContent className="p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Kasa (toplam param)
+          </p>
+          <p className="mt-1 text-3xl font-bold tabular-nums">
+            {formatTRY(totalCash)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Tüm banka hesapları + evdeki nakit
+          </p>
+        </CardContent>
+      </Card>
 
       {/* 4. Hızlı kasa hareketi */}
       <QuickCashButtons />
@@ -112,7 +116,11 @@ export default function Dashboard() {
 
       {/* 6. Aylık özet stat'ları */}
       <div className="grid grid-cols-2 gap-3">
-        <Stat label="Bu Ay Harcanan" value={formatTRY(thisMonthSpent)} tone="danger" />
+        <Stat
+          label="Bu Ay Harcanan"
+          value={formatTRY(thisMonthSpent)}
+          tone="danger"
+        />
         <Stat label="Bu Ayın Tasarrufu" value={formatTRY(0)} muted />
         <Stat
           label="Aylık Borç"
@@ -127,27 +135,29 @@ export default function Dashboard() {
       </div>
 
       {/* 7. Aylık projeksiyon */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted)]">
-          Aylık Projeksiyon (Ortalama)
-        </p>
-        <div className="mt-3 space-y-2 text-sm">
-          <Row label="Gelir" value={monthlyIncome} positive />
-          <Row label="Borç ödemeleri" value={-monthlyDebts} />
-          <Row label="Faturalar" value={-monthlyBills} />
-          <Row
-            label={`Günlük harcama (${formatTRY(dailyLimit)} × 30)`}
-            value={-monthlyDailyBudget}
-          />
-          <hr className="my-2 border-[var(--color-border)]" />
-          <Row
-            label="Beklenen aylık tasarruf"
-            value={projectedSurplus}
-            positive={projectedSurplus >= 0}
-            bold
-          />
-        </div>
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Aylık Projeksiyon (Ortalama)
+          </p>
+          <div className="mt-3 space-y-2 text-sm">
+            <Row label="Gelir" value={monthlyIncome} positive />
+            <Row label="Borç ödemeleri" value={-monthlyDebts} />
+            <Row label="Faturalar" value={-monthlyBills} />
+            <Row
+              label={`Günlük harcama (${formatTRY(dailyLimit)} × 30)`}
+              value={-monthlyDailyBudget}
+            />
+            <Separator className="my-2" />
+            <Row
+              label="Beklenen aylık tasarruf"
+              value={projectedSurplus}
+              positive={projectedSurplus >= 0}
+              bold
+            />
+          </div>
+        </CardContent>
+      </Card>
     </section>
   );
 }
@@ -166,16 +176,20 @@ function Stat({ label, value, muted, tone }: StatProps) {
       : tone === 'danger'
         ? 'text-[var(--color-danger)]'
         : muted
-          ? 'text-[var(--color-muted)]'
-          : 'text-[var(--color-text)]';
+          ? 'text-muted-foreground'
+          : 'text-foreground';
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
-        {label}
-      </p>
-      <p className={`mt-1 text-lg font-semibold ${toneClass}`}>{value}</p>
-    </div>
+    <Card>
+      <CardContent className="p-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        <p className={`mt-1 text-lg font-semibold tabular-nums ${toneClass}`}>
+          {value}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -194,8 +208,8 @@ function Row({ label, value, positive, bold }: RowProps) {
   const weight = bold ? 'font-semibold' : '';
   return (
     <div className="flex items-center justify-between">
-      <span className={`text-[var(--color-muted)] ${weight}`}>{label}</span>
-      <span className={`${valueColor} ${weight}`}>
+      <span className={`text-muted-foreground ${weight}`}>{label}</span>
+      <span className={`tabular-nums ${valueColor} ${weight}`}>
         {value >= 0 ? '+' : ''}
         {formatTRY(value)}
       </span>
