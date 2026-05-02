@@ -26,6 +26,14 @@ import { useCurrentUser } from '../identity/CurrentUserProvider';
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** Sesle komut veya başka kaynaktan gelen ön doldurma değerleri. */
+  defaults?: {
+    amount?: number;
+    category?: ExpenseCategory;
+    accountName?: string;
+    spender?: ExpenseSpender;
+    description?: string;
+  };
 }
 
 interface CategoryOption {
@@ -46,7 +54,7 @@ const CATEGORIES: readonly CategoryOption[] = [
   { value: 'other', label: 'Diğer', emoji: '📋' },
 ];
 
-export function AddExpenseDialog({ open, onClose }: Props) {
+export function AddExpenseDialog({ open, onClose, defaults }: Props) {
   const { addExpense } = useExpense();
   const { current } = useCurrentUser();
 
@@ -58,12 +66,13 @@ export function AddExpenseDialog({ open, onClose }: Props) {
 
   useEffect(() => {
     if (open) {
-      setSpender(current);
-      setAmount(0);
-      setDescription('');
-      setAccountName('');
+      setSpender(defaults?.spender ?? current);
+      setAmount(defaults?.amount ?? 0);
+      setCategory(defaults?.category ?? 'grocery');
+      setDescription(defaults?.description ?? '');
+      setAccountName(defaults?.accountName ?? '');
     }
-  }, [open, current]);
+  }, [open, current, defaults]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useExpense } from './ExpenseProvider';
 import { AddExpenseDialog } from './AddExpenseDialog';
+import { VoiceExpenseButton } from './VoiceExpenseButton';
 import { SEED_HOUSEHOLD } from '@/db/seed';
 import { formatTRY } from '@/lib/format';
 import { CountUp } from '@/components/AnimatedNumber';
@@ -85,17 +86,20 @@ export function TodaySpendingCard() {
             />
           </div>
 
-          <motion.button
-            type="button"
-            onClick={() => setOpen(true)}
-            whileTap={{ scale: 0.97 }}
-            whileHover={{ scale: 1.01 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-white py-4 text-base font-bold text-indigo-700 shadow-md hover:shadow-xl"
-          >
-            <Plus className="size-5" strokeWidth={2.6} />
-            Harcama Ekle
-          </motion.button>
+          <div className="mt-5 flex items-stretch gap-2">
+            <motion.button
+              type="button"
+              onClick={() => setOpen(true)}
+              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: 1.01 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white py-4 text-base font-bold text-indigo-700 shadow-md hover:shadow-xl"
+            >
+              <Plus className="size-5" strokeWidth={2.6} />
+              Harcama Ekle
+            </motion.button>
+            <VoiceExpenseButton />
+          </div>
         </div>
       </motion.div>
 
