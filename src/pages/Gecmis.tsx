@@ -27,6 +27,9 @@ import {
   type ExpenseEntry,
   type ExpenseSpender,
 } from '@/features/expense/ExpenseProvider';
+import { useCash } from '@/features/cash/CashProvider';
+import { Button } from '@/components/ui/button';
+import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
 const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
   food: 'Yemek',
@@ -87,6 +90,7 @@ function formatTime(iso: string): string {
 
 export default function Gecmis() {
   const { entries, monthlyTotal, monthlySavings, removeExpense } = useExpense();
+  const { entries: cashEntries, removeEntry: removeCashEntry } = useCash();
   const { dailyLimit } = useSettings();
   const [month, setMonth] = useState<string>(() => monthKey());
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -95,6 +99,15 @@ export default function Gecmis() {
   const inMonth = useMemo(
     () => entries.filter((e) => e.date.startsWith(month)),
     [entries, month],
+  );
+
+  // Plan dışı kasa hareketleri (gelen + giden) bu ay için
+  const cashInMonth = useMemo(
+    () =>
+      cashEntries
+        .filter((e) => e.date.startsWith(month))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [cashEntries, month],
   );
 
   const total = monthlyTotal(month);
@@ -322,11 +335,78 @@ export default function Gecmis() {
         </Card>
       )}
 
-      {dayGroups.length === 0 ? (
+      {/* Plan Dışı Kasa Hareketleri (Gelen Para / Giden Para) */}
+      {cashInMonth.length > 0 && (
+        <Card>
+          <CardContent className="p-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Plan Dışı Hareketler · {cashInMonth.length} öge
+            </p>
+            <ul className="space-y-1.5">
+              {cashInMonth.map((entry) => {
+                const isIn = entry.direction === 'in';
+                return (
+                  <li
+                    key={entry.id}
+                    className={`flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2 ${
+                      isIn
+                        ? 'border-[var(--color-success)]/20 bg-[var(--color-success)]/5'
+                        : 'border-[var(--color-danger)]/20 bg-[var(--color-danger)]/5'
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-start gap-2">
+                      {isIn ? (
+                        <ArrowDownCircle className="mt-0.5 size-4 shrink-0 text-[var(--color-success)]" />
+                      ) : (
+                        <ArrowUpCircle className="mt-0.5 size-4 shrink-0 text-[var(--color-danger)]" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {entry.description || (isIn ? 'Gelen Para' : 'Giden Para')}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {entry.accountName}
+                          {entry.date && ` · ${dayLabel(entry.date)}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={`text-sm font-semibold tabular-nums ${
+                          isIn
+                            ? 'text-[var(--color-success)]'
+                            : 'text-[var(--color-danger)]'
+                        }`}
+                      >
+                        {isIn ? '+' : '−'}
+                        {formatTRY(entry.amount)}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeCashEntry(entry.id)}
+                        className="h-7 px-1.5 text-muted-foreground hover:text-[var(--color-danger)]"
+                        aria-label="Hareketi sil"
+                      >
+                        <Trash2 className="size-3" />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {dayGroups.length === 0 && cashInMonth.length === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
           {monthLabel(month)} için henüz harcama yok.
         </div>
-      ) : (
+      )}
+
+      {dayGroups.length > 0 && (
         <div className="space-y-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Günlük Detay · {dayGroups.length} gün

@@ -86,9 +86,13 @@ export const SEED_ACCOUNTS: readonly SeedAccount[] = [
   { name: 'Evdeki Nakit', type: 'cash', owner: 'shared', balance: 7900.0 },
 ];
 
-// Seed remainingInstallments orijinal değerler — toplam ay sayısı.
-// Mayıs 2026 ödemesi DebtPaymentProvider seed'inde "ödendi" olarak işaretli (Mehmet hariç).
-// Kullanıcı sonraki ayları "Bu Ay Ödendi" butonu ile işaretler, kalan ay otomatik düşer.
+// SEED remainingInstallments = "Toplam taksit sayısı" (Mayıs ödendiği zaman kalan).
+// Mehmet hariç tüm borçlar için Mayıs 2026 ödemesi DebtPaymentProvider seed'inde
+// "ödendi" işaretli — yani UI'da seed total - 1 = kalan ay olarak gösterilir.
+//
+// Mehmet UNPAID_IN_MAY (Mayıs ödenmedi seed). total=1 → Haziran ödendiğinde 0 (kapanır).
+// Evkur de UNPAID_IN_MAY ama tipik fixed_installment — Mayıs ödenmemiş seed,
+//   kullanıcı manuel ödediğinde 21 - 1 = 20 görür.
 export const SEED_DEBTS: readonly SeedDebt[] = [
   {
     name: 'İş Bankası — Emre',
@@ -105,8 +109,8 @@ export const SEED_DEBTS: readonly SeedDebt[] = [
     type: 'fixed_installment',
     bankOrCreditor: 'Evkur',
     monthlyPayment: 5440,
-    totalInstallments: 20,
-    remainingInstallments: 20,
+    totalInstallments: 21,
+    remainingInstallments: 21,
   },
   {
     name: 'Melih Kredi',
@@ -114,8 +118,8 @@ export const SEED_DEBTS: readonly SeedDebt[] = [
     type: 'fixed_installment',
     bankOrCreditor: 'Melih',
     monthlyPayment: 5650,
-    totalInstallments: 27,
-    remainingInstallments: 27,
+    totalInstallments: 28,
+    remainingInstallments: 28,
   },
   {
     name: 'Emre Garanti 1',
@@ -123,8 +127,8 @@ export const SEED_DEBTS: readonly SeedDebt[] = [
     type: 'fixed_installment',
     bankOrCreditor: 'Garanti BBVA',
     monthlyPayment: 2741,
-    totalInstallments: 16,
-    remainingInstallments: 16,
+    totalInstallments: 17,
+    remainingInstallments: 17,
   },
   {
     name: 'Emre Garanti 2',
@@ -132,8 +136,8 @@ export const SEED_DEBTS: readonly SeedDebt[] = [
     type: 'fixed_installment',
     bankOrCreditor: 'Garanti BBVA',
     monthlyPayment: 1777.08,
-    totalInstallments: 28,
-    remainingInstallments: 28,
+    totalInstallments: 29,
+    remainingInstallments: 29,
   },
   {
     name: 'Emre Garanti 3',
@@ -141,8 +145,8 @@ export const SEED_DEBTS: readonly SeedDebt[] = [
     type: 'fixed_installment',
     bankOrCreditor: 'Garanti BBVA',
     monthlyPayment: 1153.23,
-    totalInstallments: 15,
-    remainingInstallments: 15,
+    totalInstallments: 16,
+    remainingInstallments: 16,
   },
   {
     name: 'Emre Garanti 4',
@@ -150,8 +154,8 @@ export const SEED_DEBTS: readonly SeedDebt[] = [
     type: 'fixed_installment',
     bankOrCreditor: 'Garanti BBVA',
     monthlyPayment: 1147.82,
-    totalInstallments: 16,
-    remainingInstallments: 16,
+    totalInstallments: 17,
+    remainingInstallments: 17,
   },
   {
     name: 'Emre Garanti 5',
@@ -159,8 +163,8 @@ export const SEED_DEBTS: readonly SeedDebt[] = [
     type: 'fixed_installment',
     bankOrCreditor: 'Garanti BBVA',
     monthlyPayment: 611.52,
-    totalInstallments: 17,
-    remainingInstallments: 17,
+    totalInstallments: 18,
+    remainingInstallments: 18,
   },
   {
     name: 'Mehmet Enişte Borç',
@@ -178,8 +182,8 @@ export const SEED_DEBTS: readonly SeedDebt[] = [
     type: 'fixed_installment',
     bankOrCreditor: 'Garanti BBVA',
     monthlyPayment: 3994.58,
-    totalInstallments: 38,
-    remainingInstallments: 38,
+    totalInstallments: 39,
+    remainingInstallments: 39,
   },
   {
     name: 'Sıla Garanti 2',
@@ -187,8 +191,8 @@ export const SEED_DEBTS: readonly SeedDebt[] = [
     type: 'fixed_installment',
     bankOrCreditor: 'Garanti BBVA',
     monthlyPayment: 1760.83,
-    totalInstallments: 38,
-    remainingInstallments: 38,
+    totalInstallments: 39,
+    remainingInstallments: 39,
   },
   {
     name: 'Sıla QNB Kredi Kartı',
@@ -196,8 +200,8 @@ export const SEED_DEBTS: readonly SeedDebt[] = [
     type: 'fixed_installment',
     bankOrCreditor: 'QNB',
     monthlyPayment: 1693.93,
-    totalInstallments: 4,
-    remainingInstallments: 4,
+    totalInstallments: 5,
+    remainingInstallments: 5,
   },
   {
     name: 'Sıla Garanti Nakit Avans',

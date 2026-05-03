@@ -26,6 +26,8 @@ interface DebtPaymentContextValue {
   markPaid: (debtName: string, monthKey: string, accountName?: string) => void;
   unmarkPaid: (debtName: string, monthKey: string) => void;
   paymentCount: (debtName: string) => number;
+  /** Borç için ödenmiş ay anahtarları (sıralı) — UI'da ileri ödeme için. */
+  paymentMonths: (debtName: string) => string[];
   remainingInstallments: (debtName: string) => number | undefined;
   effectivePrincipal: (debtName: string) => number | undefined;
   isClosedByPayments: (debtName: string) => boolean;
@@ -156,6 +158,12 @@ export function DebtPaymentProvider({ children }: ProviderProps) {
     const paymentCount = (debtName: string): number =>
       items.filter((p) => p.debtName === debtName).length;
 
+    const paymentMonths = (debtName: string): string[] =>
+      items
+        .filter((p) => p.debtName === debtName)
+        .map((p) => p.monthKey)
+        .sort();
+
     const remainingInstallments = (debtName: string): number | undefined => {
       const debt = SEED_DEBTS.find((d) => d.name === debtName);
       if (!debt || debt.remainingInstallments == null) return undefined;
@@ -201,6 +209,7 @@ export function DebtPaymentProvider({ children }: ProviderProps) {
         void remove(safeDocId(debtName, monthKey));
       },
       paymentCount,
+      paymentMonths,
       remainingInstallments,
       effectivePrincipal,
       isClosedByPayments,
