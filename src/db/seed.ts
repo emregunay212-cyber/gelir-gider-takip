@@ -261,6 +261,17 @@ export const SEED_INCOMES: readonly SeedIncome[] = [
     ],
     notes: 'Maç başı 1.000 TL — geldikçe "alındı" işaretle.',
   },
+  {
+    name: 'Sodexo Market',
+    ownerKey: 'sila',
+    category: 'bonus',
+    frequency: 'monthly',
+    amountMin: 3500,
+    amountMax: 4000,
+    dayOfMonth: 5,
+    notes:
+      'Market alışverişi için Sodexo kartı — tutar her ay 3500-4000 TL arası değişiyor.',
+  },
 ];
 
 export const SEED_RECURRING_EXPENSES: readonly SeedRecurringExpense[] = [

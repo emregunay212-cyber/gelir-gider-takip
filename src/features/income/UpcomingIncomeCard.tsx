@@ -92,6 +92,24 @@ function getExtraPendingIncomes(currentMonth: string): ExtraIncome[] {
       // Toplam bilgi notu için tek satır yeter — adet bilgisi name'de yok ama
       // expectedAmount tek adet, hatırlatma için info satırında belirtilir.
       void totalRemaining;
+    } else if (
+      income.frequency === 'monthly' &&
+      income.category !== 'salary'
+    ) {
+      // Aylık ama maaş olmayan gelirler (örn. Sodexo gibi yan haklar).
+      // Tutar değişkense ortalamayı varsayılan göster, kullanıcı "Geldi"
+      // ile gerçek tutarı girer.
+      const expected =
+        income.amountFixed ??
+        (income.amountMin != null && income.amountMax != null
+          ? (income.amountMin + income.amountMax) / 2
+          : 0);
+      items.push({
+        name: income.name,
+        expectedAmount: expected,
+        description: `${income.name} (${currentMonth})`,
+        // accountName yok → kullanıcı CashEntryDialog'da hesap seçer.
+      });
     }
   }
 
