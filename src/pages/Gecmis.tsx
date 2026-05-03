@@ -432,13 +432,21 @@ export default function Gecmis() {
                               {CATEGORY_EMOJI[expense.category]}
                             </span>
                             <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
                                 <Badge
                                   variant="outline"
                                   className={`px-1.5 py-0 text-[10px] font-medium ${SPENDER_BADGE[expense.spender]}`}
                                 >
                                   {expense.spender === 'emre' ? 'Emre' : 'Sıla'}
                                 </Badge>
+                                {expense.excludeFromDailyLimit && (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-amber-500/15 text-amber-300 border-amber-500/30 px-1.5 py-0 text-[10px] font-semibold"
+                                  >
+                                    Limit dışı
+                                  </Badge>
+                                )}
                                 <p
                                   className={`text-sm font-medium ${isExpanded ? 'break-words' : 'truncate'}`}
                                 >
@@ -508,6 +516,18 @@ export default function Gecmis() {
                                   <DetailRow
                                     label="🏦 Hesap"
                                     value={expense.accountName}
+                                  />
+                                )}
+                                {expense.odometerKm != null && (
+                                  <DetailRow
+                                    label="🚗 Kilometre"
+                                    value={`${expense.odometerKm.toLocaleString('tr-TR')} km`}
+                                  />
+                                )}
+                                {expense.excludeFromDailyLimit && (
+                                  <DetailRow
+                                    label="⛽ Durum"
+                                    value="Günlük limit dışı"
                                   />
                                 )}
                                 {time && (

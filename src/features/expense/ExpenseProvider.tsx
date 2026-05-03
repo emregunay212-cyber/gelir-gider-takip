@@ -22,6 +22,14 @@ export interface ExpenseEntry {
   description?: string;
   accountName?: string;
   createdAt: string;
+  /**
+   * true ise bu harcama günlük limit hesaplarına dahil edilmez.
+   * Hesap bakiyesinden yine düşer, geçmişte görünür.
+   * Yakıt gibi planlı, sabit giderler için kullanılır.
+   */
+  excludeFromDailyLimit?: boolean;
+  /** Yakıt harcamalarında araç kilometresi (km). */
+  odometerKm?: number;
 }
 
 interface ExpenseContextValue {
@@ -93,6 +101,12 @@ function validateExpenseEntry(raw: DocumentData): ExpenseEntry | null {
   if (typeof raw.accountName === 'string' && raw.accountName.length > 0) {
     entry.accountName = raw.accountName;
   }
+  if (raw.excludeFromDailyLimit === true) {
+    entry.excludeFromDailyLimit = true;
+  }
+  if (typeof raw.odometerKm === 'number' && raw.odometerKm >= 0) {
+    entry.odometerKm = raw.odometerKm;
+  }
   return entry;
 }
 
@@ -158,6 +172,9 @@ export function ExpenseProvider({ children }: ProviderProps) {
   const value = useMemo<ExpenseContextValue>(() => {
     const todaysList = items.filter((e) => e.date === today);
     const totalAll = items.reduce((s, e) => s + e.amount, 0);
+    // Günlük limit hesapları için sadece exclude=false olanlar
+    const isCounted = (e: ExpenseEntry): boolean =>
+      e.excludeFromDailyLimit !== true;
     return {
       entries: items,
       addExpense: (input) => {
@@ -172,6 +189,10 @@ export function ExpenseProvider({ children }: ProviderProps) {
         // Opsiyonel alanları yalnızca dolu olduklarında ekle (Firestore undefined kabul etmez)
         if (input.description) entry.description = input.description;
         if (input.accountName) entry.accountName = input.accountName;
+        if (input.excludeFromDailyLimit) entry.excludeFromDailyLimit = true;
+        if (input.odometerKm != null && input.odometerKm >= 0) {
+          entry.odometerKm = input.odometerKm;
+        }
 
         upsert(entry).catch((err: unknown) => {
           const message =
@@ -202,8 +223,18 @@ export function ExpenseProvider({ children }: ProviderProps) {
           updates.accountName !== undefined
             ? updates.accountName
             : existing.accountName;
+        const excludeFromDailyLimit =
+          updates.excludeFromDailyLimit !== undefined
+            ? updates.excludeFromDailyLimit
+            : existing.excludeFromDailyLimit;
+        const odometerKm =
+          updates.odometerKm !== undefined
+            ? updates.odometerKm
+            : existing.odometerKm;
         if (description) merged.description = description;
         if (accountName) merged.accountName = accountName;
+        if (excludeFromDailyLimit) merged.excludeFromDailyLimit = true;
+        if (odometerKm != null && odometerKm >= 0) merged.odometerKm = odometerKm;
 
         upsert(merged).catch((err: unknown) => {
           const message =
@@ -219,13 +250,17 @@ export function ExpenseProvider({ children }: ProviderProps) {
         });
       },
       todaysExpenses: () => todaysList,
-      todaysTotal: () => todaysList.reduce((s, e) => s + e.amount, 0),
+      // todaysTotal sadece günlük limite sayılan harcamaları döner (yakıt hariç)
+      todaysTotal: () =>
+        todaysList.filter(isCounted).reduce((s, e) => s + e.amount, 0),
       totalForDate: (date) =>
-        items.filter((e) => e.date === date).reduce((s, e) => s + e.amount, 0),
+        items
+          .filter((e) => e.date === date && isCounted(e))
+          .reduce((s, e) => s + e.amount, 0),
       totalDelta: () => totalAll,
       monthlyTotal: (month) =>
         items
-          .filter((e) => e.date.startsWith(month))
+          .filter((e) => e.date.startsWith(month) && isCounted(e))
           .reduce((s, e) => s + e.amount, 0),
       monthlySavings: (month, dailyLimit) => {
         const [yearStr, monthNumStr] = month.split('-');
@@ -246,8 +281,10 @@ export function ExpenseProvider({ children }: ProviderProps) {
         }
 
         const monthlyBudget = dailyLimit * daysCount;
+        // Tasarruf: limit dahilindeki harcamalar — yakıt gibi excluded olanlar
+        // bütçeden ayrı düşünülür, tasarruf hesabını bozmaz.
         const totalSpent = items
-          .filter((e) => e.date.startsWith(month))
+          .filter((e) => e.date.startsWith(month) && isCounted(e))
           .reduce((s, e) => s + e.amount, 0);
 
         return monthlyBudget - totalSpent;

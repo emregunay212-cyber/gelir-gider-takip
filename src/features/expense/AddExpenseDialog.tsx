@@ -83,6 +83,11 @@ export function AddExpenseDialog({
   const [description, setDescription] = useState<string>('');
   const [accountName, setAccountName] = useState<string>('');
   const [date, setDate] = useState<string>(() => todayKey());
+  const [odometerKm, setOdometerKm] = useState<string>('');
+  const [excludeFromDailyLimit, setExcludeFromDailyLimit] =
+    useState<boolean>(false);
+
+  const isFuelCategory = category === 'fuel';
 
   const minDate = daysAgoKey(7);
   const maxDate = todayKey();
@@ -97,15 +102,41 @@ export function AddExpenseDialog({
       setDescription(editingExpense.description ?? '');
       setAccountName(editingExpense.accountName ?? '');
       setDate(editingExpense.date);
+      setOdometerKm(
+        editingExpense.odometerKm != null
+          ? String(editingExpense.odometerKm)
+          : '',
+      );
+      setExcludeFromDailyLimit(editingExpense.excludeFromDailyLimit === true);
     } else {
+      const initialCategory = defaults?.category ?? 'grocery';
       setSpender(defaults?.spender ?? current);
       setAmount(defaults?.amount ?? 0);
-      setCategory(defaults?.category ?? 'grocery');
+      setCategory(initialCategory);
       setDescription(defaults?.description ?? '');
       setAccountName(defaults?.accountName ?? '');
       setDate(todayKey());
+      setOdometerKm('');
+      // Yakıt seçilmişse default olarak limit dışı
+      setExcludeFromDailyLimit(initialCategory === 'fuel');
     }
   }, [open, current, defaults, editingExpense]);
+
+  // Kategori değişikliğinde: yakıt seçilirse exclude varsayılan true,
+  // başka kategoriye geçilirse km input'u temizlenir.
+  useEffect(() => {
+    if (category === 'fuel') {
+      setExcludeFromDailyLimit(true);
+    } else {
+      setOdometerKm('');
+      // Diğer kategorilerde exclude flag'ini default false yap
+      // (kullanıcı manuel açtıysa o kalsın — düzenleme modunda bunu bozma)
+      if (!editingExpense) {
+        setExcludeFromDailyLimit(false);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -124,6 +155,15 @@ export function AddExpenseDialog({
     const catLabel = CATEGORIES.find((c) => c.value === category)?.label ?? '';
     const spenderLabel = spender === 'emre' ? 'Emre' : 'Sıla';
 
+    // Yakıt için km parse — boş bırakılabilir (zorunlu değil)
+    const parsedKm = odometerKm.trim()
+      ? Number(odometerKm.replace(',', '.'))
+      : undefined;
+    const validKm =
+      parsedKm != null && Number.isFinite(parsedKm) && parsedKm >= 0
+        ? Math.round(parsedKm)
+        : undefined;
+
     if (isEditing && editingExpense) {
       updateExpense(editingExpense.id, {
         spender,
@@ -132,6 +172,8 @@ export function AddExpenseDialog({
         description: trimmedDesc || undefined,
         accountName: accountName || undefined,
         date,
+        excludeFromDailyLimit,
+        odometerKm: validKm,
       });
       toast.success('Harcama güncellendi ✏️', {
         description: `${formatTRY(amount)} · ${spenderLabel} · ${catLabel}`,
@@ -144,9 +186,14 @@ export function AddExpenseDialog({
         description: trimmedDesc || undefined,
         accountName: accountName || undefined,
         date,
+        excludeFromDailyLimit,
+        odometerKm: validKm,
       });
-      toast.success(`${formatTRY(amount)} harcama eklendi`, {
-        description: `${spenderLabel} · ${catLabel}${trimmedDesc ? ` · ${trimmedDesc}` : ''}`,
+      const extraNote = excludeFromDailyLimit ? ' (limit dışı)' : '';
+      toast.success(`${formatTRY(amount)} harcama eklendi${extraNote}`, {
+        description: `${spenderLabel} · ${catLabel}${trimmedDesc ? ` · ${trimmedDesc}` : ''}${
+          validKm != null ? ` · ${validKm.toLocaleString('tr-TR')} km` : ''
+        }`,
       });
     }
 
@@ -238,6 +285,48 @@ export function AddExpenseDialog({
             </Select>
           </div>
 
+          {isFuelCategory && (
+            <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+              <div className="flex items-center gap-2">
+                <span className="text-base">⛽</span>
+                <p className="text-xs font-semibold text-amber-300">
+                  Yakıt — Günlük limit dışı
+                </p>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Bu harcama günlük limit toplamına dahil edilmeyecek, sadece
+                hesap bakiyesinden düşecek ve geçmişe yazılacak.
+              </p>
+              <div className="space-y-1.5 pt-1">
+                <Label htmlFor="odometer-km" className="text-xs">
+                  Araç kilometresi (km, opsiyonel)
+                </Label>
+                <Input
+                  id="odometer-km"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1}
+                  value={odometerKm}
+                  onChange={(event) => setOdometerKm(event.target.value)}
+                  placeholder="Örn. 142500"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Yakıt verimliliği takibi için. Boş bırakabilirsin.
+                </p>
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 pt-1 text-[11px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={excludeFromDailyLimit}
+                  onChange={(e) => setExcludeFromDailyLimit(e.target.checked)}
+                  className="size-3.5 accent-amber-400"
+                />
+                Limit dışı (önerilen) — kapatırsan günlük toplama dahil olur
+              </label>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label htmlFor="description">Açıklama (opsiyonel)</Label>
             <Input
@@ -245,7 +334,7 @@ export function AddExpenseDialog({
               type="text"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Örn: Migros, Shell, BIM"
+              placeholder={isFuelCategory ? 'Örn: Shell, OPET, Petrol Ofisi' : 'Örn: Migros, Shell, BIM'}
               maxLength={120}
             />
           </div>
