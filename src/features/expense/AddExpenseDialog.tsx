@@ -22,10 +22,10 @@ import {
   type ExpenseEntry,
   type ExpenseSpender,
 } from './ExpenseProvider';
-import { SEED_ACCOUNTS } from '@/db/seed';
 import { todayKey, daysAgoKey, formatTRY } from '@/lib/format';
 import type { ExpenseCategory } from '@/types';
 import { useCurrentUser } from '../identity/CurrentUserProvider';
+import { useAllAccounts } from '@/features/custom-data/useAllAccounts';
 
 interface Props {
   open: boolean;
@@ -73,6 +73,7 @@ export function AddExpenseDialog({
 }: Props) {
   const { addExpense, updateExpense } = useExpense();
   const { current } = useCurrentUser();
+  const allAccounts = useAllAccounts();
 
   const isEditing = editingExpense !== undefined;
 
@@ -262,7 +263,7 @@ export function AddExpenseDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">— belirtme —</SelectItem>
-                {SEED_ACCOUNTS.map((account) => (
+                {allAccounts.map((account) => (
                   <SelectItem key={account.name} value={account.name}>
                     {account.name}
                   </SelectItem>

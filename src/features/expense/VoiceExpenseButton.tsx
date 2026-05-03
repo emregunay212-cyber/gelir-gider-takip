@@ -9,11 +9,13 @@ import {
   type ParsedExpense,
 } from '@/lib/voice-parser';
 import { AddExpenseDialog } from './AddExpenseDialog';
+import { useAllAccounts } from '@/features/custom-data/useAllAccounts';
 
 export function VoiceExpenseButton() {
   const [overlay, setOverlay] = useState(false);
   const [open, setOpen] = useState(false);
   const [defaults, setDefaults] = useState<ParsedExpense | undefined>();
+  const allAccounts = useAllAccounts();
 
   const handleError = useCallback((error: string) => {
     if (error === 'no-speech') return;
@@ -61,7 +63,7 @@ export function VoiceExpenseButton() {
       toast.warning('Henüz bir şey söylemedin');
       return;
     }
-    const parsed = parseExpenseFromSpeech(text);
+    const parsed = parseExpenseFromSpeech(text, allAccounts);
     if (parsed.amount <= 0) {
       toast.error('Tutarı anlayamadım', {
         description: `"${text}" — örn: "215 TL çiğ köfte aldım"`,

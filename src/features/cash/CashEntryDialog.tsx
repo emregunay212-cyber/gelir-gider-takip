@@ -18,8 +18,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCash, type CashEntryDirection } from './CashProvider';
-import { SEED_ACCOUNTS } from '@/db/seed';
 import { todayKey, formatTRY } from '@/lib/format';
+import { useAllAccounts } from '@/features/custom-data/useAllAccounts';
 
 interface Props {
   direction: CashEntryDirection;
@@ -49,10 +49,11 @@ export function CashEntryDialog({
   defaultAccountName,
 }: Props) {
   const { addEntry } = useCash();
+  const allAccounts = useAllAccounts();
 
   const fallbackAccount =
-    SEED_ACCOUNTS.find((a) => a.type === 'cash')?.name ??
-    SEED_ACCOUNTS[0]?.name ?? '';
+    allAccounts.find((a) => a.type === 'cash')?.name ??
+    allAccounts[0]?.name ?? '';
 
   const [amount, setAmount] = useState<number>(defaultAmount ?? 0);
   const [description, setDescription] = useState<string>(defaultDescription ?? '');
@@ -147,7 +148,7 @@ export function CashEntryDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {SEED_ACCOUNTS.map((account) => (
+                {allAccounts.map((account) => (
                   <SelectItem key={account.name} value={account.name}>
                     {account.name}
                   </SelectItem>

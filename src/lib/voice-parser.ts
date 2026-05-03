@@ -1,6 +1,6 @@
 import type { ExpenseCategory } from '@/types';
 import type { ExpenseSpender } from '@/features/expense/ExpenseProvider';
-import { SEED_ACCOUNTS } from '@/db/seed';
+import { SEED_ACCOUNTS, type SeedAccount } from '@/db/seed';
 
 export interface ParsedExpense {
   amount: number;
@@ -187,11 +187,14 @@ function parseSpender(text: string): ExpenseSpender | undefined {
   return undefined;
 }
 
-function parseAccount(text: string): string | undefined {
+function parseAccount(
+  text: string,
+  accounts: readonly SeedAccount[] = SEED_ACCOUNTS,
+): string | undefined {
   const lower = trLower(text);
 
-  // Tüm SEED_ACCOUNTS isimlerini sırayla kontrol et
-  for (const account of SEED_ACCOUNTS) {
+  // Tüm hesap isimlerini sırayla kontrol et (custom + seed)
+  for (const account of accounts) {
     if (lower.includes(trLower(account.name))) return account.name;
   }
 
@@ -217,11 +220,14 @@ function parseAccount(text: string): string | undefined {
   return undefined;
 }
 
-export function parseExpenseFromSpeech(rawText: string): ParsedExpense {
+export function parseExpenseFromSpeech(
+  rawText: string,
+  accounts?: readonly SeedAccount[],
+): ParsedExpense {
   return {
     amount: parseAmount(rawText),
     category: parseCategory(rawText),
-    accountName: parseAccount(rawText),
+    accountName: parseAccount(rawText, accounts),
     spender: parseSpender(rawText),
     description: rawText.trim(),
     rawText,
