@@ -18,8 +18,8 @@ import {
   getDaysInMonth,
   dayLabel,
 } from '@/lib/format';
-import { SEED_HOUSEHOLD } from '@/db/seed';
 import type { ExpenseCategory } from '@/types';
+import { useSettings } from '@/features/settings/SettingsProvider';
 import {
   useExpense,
   type ExpenseEntry,
@@ -85,6 +85,7 @@ function formatTime(iso: string): string {
 
 export default function Gecmis() {
   const { entries, monthlyTotal, monthlySavings, removeExpense } = useExpense();
+  const { dailyLimit } = useSettings();
   const [month, setMonth] = useState<string>(() => monthKey());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ExpenseEntry | null>(null);
@@ -95,7 +96,6 @@ export default function Gecmis() {
   );
 
   const total = monthlyTotal(month);
-  const dailyLimit = SEED_HOUSEHOLD.defaultDailyLimit;
   const totalDaysInMonth = getDaysInMonth(month);
   const currentMonth = monthKey();
 

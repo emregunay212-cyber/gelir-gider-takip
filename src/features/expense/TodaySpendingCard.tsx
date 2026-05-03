@@ -4,15 +4,15 @@ import { motion } from 'motion/react';
 import { useExpense } from './ExpenseProvider';
 import { AddExpenseDialog } from './AddExpenseDialog';
 import { VoiceExpenseButton } from './VoiceExpenseButton';
-import { SEED_HOUSEHOLD } from '@/db/seed';
 import { formatTRY } from '@/lib/format';
 import { CountUp } from '@/components/AnimatedNumber';
+import { useSettings } from '@/features/settings/SettingsProvider';
 
 export function TodaySpendingCard() {
   const { todaysTotal } = useExpense();
+  const { dailyLimit: limit } = useSettings();
   const [open, setOpen] = useState(false);
 
-  const limit = SEED_HOUSEHOLD.defaultDailyLimit;
   const spent = todaysTotal();
   const remaining = limit - spent;
   const percent = Math.min(100, Math.max(0, (spent / limit) * 100));

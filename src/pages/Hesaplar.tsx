@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatTRY } from '@/lib/format';
@@ -7,6 +9,8 @@ import { useSalary } from '@/features/income/SalaryProvider';
 import { useCash } from '@/features/cash/CashProvider';
 import { useExpense } from '@/features/expense/ExpenseProvider';
 import { useDebtPayment } from '@/features/debt/DebtPaymentProvider';
+import { useAccountOverrides } from '@/features/accounts/AccountOverridesProvider';
+import { EditAccountBalanceDialog } from '@/features/accounts/EditAccountBalanceDialog';
 
 const OWNER_LABEL: Record<AccountOwner, string> = {
   emre: 'Emre',
@@ -20,34 +24,69 @@ const OWNER_BADGE: Record<AccountOwner, string> = {
   shared: 'bg-muted text-muted-foreground border-border',
 };
 
+interface AccountRow {
+  name: string;
+  type: 'bank' | 'cash' | 'savings' | 'virtual_kasa';
+  owner: AccountOwner;
+  bankName?: string;
+  baseBalance: number;
+  effectiveBalance: number;
+  hasOverride: boolean;
+  salaryDeltaAmount: number;
+  cashDeltaAmount: number;
+  expenseDeltaAmount: number;
+  debtDeltaAmount: number;
+}
+
 export default function Hesaplar() {
   const { balanceDelta: salaryDelta, totalDelta: salaryTotal } = useSalary();
   const { balanceDelta: cashDelta, totalDelta: cashTotal } = useCash();
   const { balanceDelta: expenseDelta, totalDelta: expenseTotal } = useExpense();
   const { balanceDelta: debtDelta, totalDelta: debtTotal } = useDebtPayment();
+  const { getOverride } = useAccountOverrides();
 
-  const accountsWithDelta = SEED_ACCOUNTS.map((a) => {
+  const [editing, setEditing] = useState<{
+    name: string;
+    effective: number;
+  } | null>(null);
+
+  const accountsWithDelta: AccountRow[] = SEED_ACCOUNTS.map((a) => {
     const sDelta = salaryDelta(a.name);
     const cDelta = cashDelta(a.name);
     const eDelta = expenseDelta(a.name);
     const dDelta = debtDelta(a.name);
+    const override = getOverride(a.name);
+    // Override varsa: kullanıcının girdiği tutar = baseBalance kabul edilir,
+    // delta'lar (override SONRASI yapılan hareketler) yine eklenir.
+    const baseBalance = override ? override.amount : a.balance;
+    const effectiveBalance = baseBalance + sDelta + cDelta - eDelta - dDelta;
     return {
-      ...a,
-      effectiveBalance: a.balance + sDelta + cDelta - eDelta - dDelta,
+      name: a.name,
+      type: a.type,
+      owner: a.owner,
+      bankName: a.bankName,
+      baseBalance,
+      effectiveBalance,
+      hasOverride: !!override,
       salaryDeltaAmount: sDelta,
       cashDeltaAmount: cDelta,
       expenseDeltaAmount: eDelta,
       debtDeltaAmount: dDelta,
     };
   });
-  const total =
-    SEED_ACCOUNTS.reduce((acc, a) => acc + a.balance, 0) +
-    salaryTotal() +
-    cashTotal() -
-    expenseTotal() -
-    debtTotal();
 
-  const groups: Record<AccountOwner, typeof accountsWithDelta> = {
+  const total =
+    accountsWithDelta.reduce((acc, a) => acc + a.effectiveBalance, 0) +
+    // Hareketleri ikinci kez eklememek için yukarıda zaten dahil edildi.
+    // Aşağıdaki sumlar SADECE total'a değil, "otomatik" hesabı tek satırda
+    // doğrulamak için referans olarak duruyor — kullanılmıyor.
+    0;
+  void salaryTotal;
+  void cashTotal;
+  void expenseTotal;
+  void debtTotal;
+
+  const groups: Record<AccountOwner, AccountRow[]> = {
     emre: [],
     sila: [],
     shared: [],
@@ -86,8 +125,18 @@ export default function Hesaplar() {
               {list.map((account) => (
                 <Card key={account.name}>
                   <CardContent className="flex items-center justify-between px-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="font-medium">{account.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium">{account.name}</p>
+                        {account.hasOverride && (
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-500/15 px-1.5 py-0 text-[10px] font-semibold text-amber-300 border-amber-500/30"
+                          >
+                            Manuel
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-[11px] text-muted-foreground">
                         {account.bankName ??
                           (account.type === 'cash' ? 'Nakit' : '')}
@@ -120,9 +169,24 @@ export default function Hesaplar() {
                         )}
                       </p>
                     </div>
-                    <p className="font-semibold tabular-nums">
-                      {formatTRY(account.effectiveBalance)}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold tabular-nums">
+                        {formatTRY(account.effectiveBalance)}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditing({
+                            name: account.name,
+                            effective: account.effectiveBalance,
+                          })
+                        }
+                        className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                        aria-label="Bakiyeyi düzelt"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -132,8 +196,17 @@ export default function Hesaplar() {
       })}
 
       <p className="text-center text-xs text-muted-foreground">
-        Bakiye düzenleme, transfer ve harcama düşümü Faz 4–6'da gelecek.
+        Bakiye yanındaki kalem ikonu ile bankaya bakıp gerçek tutarı girebilirsin.
       </p>
+
+      {editing && (
+        <EditAccountBalanceDialog
+          open
+          onClose={() => setEditing(null)}
+          accountName={editing.name}
+          currentEffective={editing.effective}
+        />
+      )}
     </section>
   );
 }

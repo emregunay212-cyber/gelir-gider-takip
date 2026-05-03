@@ -3,12 +3,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { CountUp } from '@/components/AnimatedNumber';
 import { formatTRY, monthKey, getDaysInMonth } from '@/lib/format';
-import {
-  SEED_ACCOUNTS,
-  SEED_DEBTS,
-  SEED_HOUSEHOLD,
-  SEED_INCOMES,
-} from '@/db/seed';
+import { SEED_ACCOUNTS, SEED_DEBTS, SEED_INCOMES } from '@/db/seed';
+import { useSettings } from '@/features/settings/SettingsProvider';
 import { useSalary } from '@/features/income/SalaryProvider';
 import { UpcomingIncomeCard } from '@/features/income/UpcomingIncomeCard';
 import { useCash } from '@/features/cash/CashProvider';
@@ -19,10 +15,16 @@ import { TodayExpensesList } from '@/features/expense/TodayExpensesList';
 import { useBills } from '@/features/bills/BillsProvider';
 import { useDebtPayment } from '@/features/debt/DebtPaymentProvider';
 import { useIncomeOverrides } from '@/features/income-overrides/IncomeOverridesProvider';
+import { useAccountOverrides } from '@/features/accounts/AccountOverridesProvider';
 
-function sumAccountBalances(): number {
+function sumAccountBalances(
+  getOverride: (name: string) => { amount: number } | undefined,
+): number {
   return SEED_ACCOUNTS.filter((a) => a.type !== 'virtual_kasa').reduce(
-    (acc, a) => acc + a.balance,
+    (acc, a) => {
+      const override = getOverride(a.name);
+      return acc + (override ? override.amount : a.balance);
+    },
     0,
   );
 }
@@ -66,10 +68,11 @@ export default function Dashboard() {
   const { monthlyTotal: billsMonthly } = useBills();
   const { totalDelta: debtPaidDelta, isClosedByPayments } = useDebtPayment();
   const { resolveAmount } = useIncomeOverrides();
+  const { dailyLimit } = useSettings();
+  const { getOverride: getAccountOverride } = useAccountOverrides();
 
-  const dailyLimit = SEED_HOUSEHOLD.defaultDailyLimit;
   const totalCash =
-    sumAccountBalances() +
+    sumAccountBalances(getAccountOverride) +
     salaryDelta() +
     cashDelta() -
     expenseDelta() -

@@ -10,6 +10,8 @@ import { ExpenseProvider } from './features/expense/ExpenseProvider';
 import { BillsProvider } from './features/bills/BillsProvider';
 import { DebtPaymentProvider } from './features/debt/DebtPaymentProvider';
 import { IncomeOverridesProvider } from './features/income-overrides/IncomeOverridesProvider';
+import { SettingsProvider } from './features/settings/SettingsProvider';
+import { AccountOverridesProvider } from './features/accounts/AccountOverridesProvider';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -21,21 +23,25 @@ createRoot(rootElement).render(
   <StrictMode>
     <BrowserRouter>
       <AuthGate>
-        <CurrentUserProvider>
-          <SalaryProvider>
-            <CashProvider>
-              <ExpenseProvider>
-                <BillsProvider>
-                  <DebtPaymentProvider>
-                    <IncomeOverridesProvider>
-                      <App />
-                    </IncomeOverridesProvider>
-                  </DebtPaymentProvider>
-                </BillsProvider>
-              </ExpenseProvider>
-            </CashProvider>
-          </SalaryProvider>
-        </CurrentUserProvider>
+        <SettingsProvider>
+          <CurrentUserProvider>
+            <SalaryProvider>
+              <CashProvider>
+                <ExpenseProvider>
+                  <BillsProvider>
+                    <DebtPaymentProvider>
+                      <IncomeOverridesProvider>
+                        <AccountOverridesProvider>
+                          <App />
+                        </AccountOverridesProvider>
+                      </IncomeOverridesProvider>
+                    </DebtPaymentProvider>
+                  </BillsProvider>
+                </ExpenseProvider>
+              </CashProvider>
+            </SalaryProvider>
+          </CurrentUserProvider>
+        </SettingsProvider>
       </AuthGate>
     </BrowserRouter>
   </StrictMode>,

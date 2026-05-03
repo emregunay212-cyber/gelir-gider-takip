@@ -6,13 +6,17 @@ import {
   Bell,
   BellOff,
   RefreshCw,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { SEED_HOUSEHOLD } from '@/db/seed';
 import { formatTRY } from '@/lib/format';
 import { useDataExport } from '@/features/export/useDataExport';
+import { useSettings, type Theme } from '@/features/settings/SettingsProvider';
+import { EditDailyLimitDialog } from '@/features/settings/EditDailyLimitDialog';
 import {
   getNotificationPermission,
   isNotificationSupported,
@@ -52,7 +56,9 @@ function clearAllLocalState(): void {
 export default function Ayarlar() {
   const [confirming, setConfirming] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [editingLimit, setEditingLimit] = useState(false);
   const { downloadJson, downloadExpensesCsv } = useDataExport();
+  const { dailyLimit, theme, resolvedTheme, setTheme } = useSettings();
 
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
     () => getNotificationPermission(),
@@ -169,23 +175,56 @@ export default function Ayarlar() {
         <SettingsCard title="Günlük Harcama Limiti">
           <div className="flex items-center justify-between">
             <p className="text-2xl font-semibold tabular-nums">
-              {formatTRY(SEED_HOUSEHOLD.defaultDailyLimit)}
+              {formatTRY(dailyLimit)}
             </p>
-            <Button type="button" variant="outline" size="sm" disabled>
-              Düzenle (Faz 6)
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditingLimit(true)}
+            >
+              Düzenle
             </Button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            300 TL yaşam + 210 TL sigara dahil. Aşım olursa ertesi günkü limit
-            azalır; kalan miktar kasaya yatar.
+            Aşım olursa ertesi günkü limit azalır; kalan miktar kasaya yatar.
+            Tüm cihazlarda anında senkronize olur.
           </p>
         </SettingsCard>
 
         <SettingsCard title="Tema">
-          <p className="text-sm text-muted-foreground">
-            Şu an: <span className="font-medium text-foreground">Koyu (Dark)</span> ·
-            açık tema seçimi sonraki fazda
+          <p className="mb-3 text-xs text-muted-foreground">
+            Şu an: {' '}
+            <span className="font-medium text-foreground">
+              {resolvedTheme === 'dark' ? 'Koyu' : 'Açık'}
+            </span>
+            {theme === 'system' && (
+              <span className="text-muted-foreground"> · sistem ayarına göre</span>
+            )}
           </p>
+          <div className="grid grid-cols-3 gap-1.5">
+            <ThemeOption
+              icon={<Sun className="size-4" />}
+              label="Açık"
+              value="light"
+              current={theme}
+              onSelect={setTheme}
+            />
+            <ThemeOption
+              icon={<Moon className="size-4" />}
+              label="Koyu"
+              value="dark"
+              current={theme}
+              onSelect={setTheme}
+            />
+            <ThemeOption
+              icon={<Monitor className="size-4" />}
+              label="Sistem"
+              value="system"
+              current={theme}
+              onSelect={setTheme}
+            />
+          </div>
         </SettingsCard>
 
         <SettingsCard title="Uygulama Güncellemesi">
@@ -342,6 +381,11 @@ export default function Ayarlar() {
           </p>
         </SettingsCard>
       </div>
+
+      <EditDailyLimitDialog
+        open={editingLimit}
+        onClose={() => setEditingLimit(false)}
+      />
     </section>
   );
 }
@@ -361,5 +405,42 @@ function SettingsCard({ title, children }: SettingsCardProps) {
         <div className="mt-2">{children}</div>
       </CardContent>
     </Card>
+  );
+}
+
+interface ThemeOptionProps {
+  icon: ReactNode;
+  label: string;
+  value: Theme;
+  current: Theme;
+  onSelect: (value: Theme) => Promise<void>;
+}
+
+function ThemeOption({
+  icon,
+  label,
+  value,
+  current,
+  onSelect,
+}: ThemeOptionProps) {
+  const isActive = current === value;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!isActive) {
+          void onSelect(value);
+        }
+      }}
+      className={`flex flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-3 text-xs font-medium transition-colors ${
+        isActive
+          ? 'border-primary bg-primary/10 text-primary'
+          : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+      }`}
+      aria-pressed={isActive}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

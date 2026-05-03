@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr" class="dark">
+<html lang="tr">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -12,6 +12,24 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Bütçe" />
     <title>Aile Bütçe — Emre & Sıla</title>
+    <script>
+      // FOUC önleme: kullanıcı tercihini localStorage'dan oku, hemen uygula.
+      // SettingsProvider Firestore'dan gelene kadar bu değer geçerli.
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme_preference_v1');
+          var theme = stored === 'light' || stored === 'dark' || stored === 'system'
+            ? stored
+            : 'dark';
+          var resolved = theme === 'system'
+            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+            : theme;
+          if (resolved === 'dark') document.documentElement.classList.add('dark');
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
