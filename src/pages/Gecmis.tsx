@@ -20,6 +20,8 @@ import {
 } from '@/lib/format';
 import type { ExpenseCategory } from '@/types';
 import { useSettings } from '@/features/settings/SettingsProvider';
+import { MonthlyComparisonChart } from '@/features/charts/MonthlyComparisonChart';
+import { MonthHeatmap } from '@/features/charts/MonthHeatmap';
 import {
   useExpense,
   type ExpenseEntry,
@@ -182,6 +184,16 @@ export default function Gecmis() {
           </button>
         </CardContent>
       </Card>
+
+      {/* Son 6 ay karşılaştırma — tıklanırsa o ay seçili olur */}
+      <MonthlyComparisonChart
+        monthsBack={6}
+        selectedMonth={month}
+        onMonthSelect={setMonth}
+      />
+
+      {/* Günlük yoğunluk heatmap */}
+      <MonthHeatmap month={month} />
 
       {/* Aylık özet — toplam harcama + tasarruf */}
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 p-5 text-white shadow-lg ring-1 ring-white/10">

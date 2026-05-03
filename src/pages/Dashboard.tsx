@@ -12,6 +12,7 @@ import {
 import { useSettings } from '@/features/settings/SettingsProvider';
 import { useCustomIncomes } from '@/features/custom-data/CustomIncomesProvider';
 import { useCustomDebts } from '@/features/custom-data/CustomDebtsProvider';
+import { RemindersCard } from '@/features/reminders/RemindersCard';
 import type { SeedDebt } from '@/db/seed';
 import { useSalary } from '@/features/income/SalaryProvider';
 import { UpcomingIncomeCard } from '@/features/income/UpcomingIncomeCard';
@@ -155,6 +156,11 @@ export default function Dashboard() {
     <section className="space-y-4">
       {/* 1. EN KRİTİK: Bugünün limiti + Harcama Ekle butonu (kendi animasyonu var) */}
       <TodaySpendingCard />
+
+      {/* 1.5. Hatırlatmalar — bugün için aksiyon gerektirenler (varsa) */}
+      <motion.div {...cardMotion} transition={cardTransition(0)}>
+        <RemindersCard />
+      </motion.div>
 
       {/* 2. Bugünkü harcamalar listesi */}
       <motion.div {...cardMotion} transition={cardTransition(1)}>
