@@ -3,8 +3,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { CountUp } from '@/components/AnimatedNumber';
 import { formatTRY, monthKey, getDaysInMonth } from '@/lib/format';
-import { SEED_ACCOUNTS, SEED_DEBTS, SEED_INCOMES } from '@/db/seed';
+import {
+  SEED_ACCOUNTS,
+  SEED_DEBTS,
+  SEED_INCOMES,
+  type SeedIncome,
+} from '@/db/seed';
 import { useSettings } from '@/features/settings/SettingsProvider';
+import { useCustomIncomes } from '@/features/custom-data/CustomIncomesProvider';
+import { useCustomDebts } from '@/features/custom-data/CustomDebtsProvider';
+import type { SeedDebt } from '@/db/seed';
 import { useSalary } from '@/features/income/SalaryProvider';
 import { UpcomingIncomeCard } from '@/features/income/UpcomingIncomeCard';
 import { useCash } from '@/features/cash/CashProvider';
@@ -16,23 +24,27 @@ import { useBills } from '@/features/bills/BillsProvider';
 import { useDebtPayment } from '@/features/debt/DebtPaymentProvider';
 import { useIncomeOverrides } from '@/features/income-overrides/IncomeOverridesProvider';
 import { useAccountOverrides } from '@/features/accounts/AccountOverridesProvider';
+import { useCustomAccounts } from '@/features/custom-data/CustomAccountsProvider';
 
 function sumAccountBalances(
+  accounts: ReadonlyArray<{ name: string; type: string; balance: number }>,
   getOverride: (name: string) => { amount: number } | undefined,
 ): number {
-  return SEED_ACCOUNTS.filter((a) => a.type !== 'virtual_kasa').reduce(
-    (acc, a) => {
+  return accounts
+    .filter((a) => a.type !== 'virtual_kasa')
+    .reduce((acc, a) => {
       const override = getOverride(a.name);
       return acc + (override ? override.amount : a.balance);
-    },
-    0,
-  );
+    }, 0);
 }
 
-function sumMonthlyDebtsActive(closedSet: Set<string>): number {
-  return SEED_DEBTS.filter(
-    (d) => !d.isPaidOff && !closedSet.has(d.name),
-  ).reduce((acc, d) => acc + d.monthlyPayment, 0);
+function sumMonthlyDebtsActive(
+  debts: readonly SeedDebt[],
+  closedSet: Set<string>,
+): number {
+  return debts
+    .filter((d) => !d.isPaidOff && !closedSet.has(d.name))
+    .reduce((acc, d) => acc + d.monthlyPayment, 0);
 }
 
 /**
@@ -41,11 +53,16 @@ function sumMonthlyDebtsActive(closedSet: Set<string>): number {
  * varsayılır; gelince kullanıcı "+ Gelen Para" veya "Yattı" ile manuel ekler.
  */
 function estimatedMonthlyIncome(
+  incomes: readonly SeedIncome[],
   resolveAmount: (name: string, base: number, month: string) => number,
   currentMonth: string,
 ): number {
-  return SEED_INCOMES.reduce((acc, income) => {
+  return incomes.reduce((acc, income) => {
     if (income.frequency !== 'monthly') return acc;
+    // Sadece maaş tipi düzenli gelirler aylık tahmine dahil olur.
+    // Bonus (Sodexo gibi) "garantili maaş" sayılmaz, kullanıcı kasaya
+    // "Geldi" diyerek manuel ekler.
+    if (income.category !== 'salary') return acc;
 
     const base =
       income.amountFixed ??
@@ -70,20 +87,47 @@ export default function Dashboard() {
   const { resolveAmount } = useIncomeOverrides();
   const { dailyLimit } = useSettings();
   const { getOverride: getAccountOverride } = useAccountOverrides();
+  const { items: customIncomesItems, asSeedList: customIncomesAsSeed } =
+    useCustomIncomes();
+  const customNameSet = new Set(customIncomesItems.map((c) => c.name));
+  const allIncomes: SeedIncome[] = [
+    ...customIncomesAsSeed(),
+    ...SEED_INCOMES.filter((s) => !customNameSet.has(s.name)),
+  ];
+
+  const { items: customAccountsItems, asSeedList: customAccountsAsSeed } =
+    useCustomAccounts();
+  const customAcctSet = new Set(customAccountsItems.map((c) => c.name));
+  const allAccounts = [
+    ...customAccountsAsSeed(),
+    ...SEED_ACCOUNTS.filter((s) => !customAcctSet.has(s.name)),
+  ];
+
+  const { items: customDebtsItems, asSeedList: customDebtsAsSeed } =
+    useCustomDebts();
+  const customDebtSet = new Set(customDebtsItems.map((c) => c.name));
+  const allDebts: SeedDebt[] = [
+    ...customDebtsAsSeed(),
+    ...SEED_DEBTS.filter((s) => !customDebtSet.has(s.name)),
+  ];
 
   const totalCash =
-    sumAccountBalances(getAccountOverride) +
+    sumAccountBalances(allAccounts, getAccountOverride) +
     salaryDelta() +
     cashDelta() -
     expenseDelta() -
     debtPaidDelta();
 
   const closedSet = new Set(
-    SEED_DEBTS.filter((d) => isClosedByPayments(d.name)).map((d) => d.name),
+    allDebts.filter((d) => isClosedByPayments(d.name)).map((d) => d.name),
   );
-  const monthlyDebts = sumMonthlyDebtsActive(closedSet);
+  const monthlyDebts = sumMonthlyDebtsActive(allDebts, closedSet);
   const monthlyBills = billsMonthly();
-  const monthlyIncome = estimatedMonthlyIncome(resolveAmount, monthKey());
+  const monthlyIncome = estimatedMonthlyIncome(
+    allIncomes,
+    resolveAmount,
+    monthKey(),
+  );
 
   const thisMonthSpent = expenseMonthly(monthKey());
   const thisMonthSavings = monthlySavings(monthKey(), dailyLimit);

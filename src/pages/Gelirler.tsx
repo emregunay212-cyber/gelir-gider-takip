@@ -1,13 +1,17 @@
 import { useState } from 'react';
-import { TrendingUp } from 'lucide-react';
+import { Plus, Trash2, TrendingUp } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatTRY, monthLabel } from '@/lib/format';
-import { SEED_INCOMES } from '@/db/seed';
+import { SEED_INCOMES, type SeedIncome } from '@/db/seed';
 import { UpcomingIncomeCard } from '@/features/income/UpcomingIncomeCard';
 import { useIncomeOverrides } from '@/features/income-overrides/IncomeOverridesProvider';
 import { SalaryRaiseDialog } from '@/features/income-overrides/SalaryRaiseDialog';
+import { useCustomIncomes } from '@/features/custom-data/CustomIncomesProvider';
+import { AddIncomeDialog } from '@/features/custom-data/AddIncomeDialog';
+import { safeDocId } from '@/lib/firestore-helpers';
 
 const OWNER_LABEL = { emre: 'Emre', sila: 'Sıla' } as const;
 const OWNER_BADGE = {
@@ -23,18 +27,39 @@ const FREQUENCY_LABEL = {
 
 export default function Gelirler() {
   const { overrides } = useIncomeOverrides();
+  const { items: customIncomes, asSeedList, remove: removeCustom } =
+    useCustomIncomes();
   const [raiseTarget, setRaiseTarget] = useState<{
     name: string;
     currentAmount: number;
   } | null>(null);
+  const [addingIncome, setAddingIncome] = useState(false);
+
+  const customSet = new Set(customIncomes.map((c) => c.name));
+  // Duplicate name varsa custom önce gelir (seed atlanır).
+  const allIncomes: SeedIncome[] = [
+    ...asSeedList(),
+    ...SEED_INCOMES.filter((s) => !customSet.has(s.name)),
+  ];
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold">Gelirler</h2>
-        <p className="text-sm text-muted-foreground">
-          Maaşlar Dashboard'dan, ek gelirler "Gelen Para" butonuyla işlenir.
-        </p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-2xl font-semibold">Gelirler</h2>
+          <p className="text-sm text-muted-foreground">
+            Maaşlar Dashboard'dan, ek gelirler "Gelen Para" butonuyla işlenir.
+          </p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => setAddingIncome(true)}
+          className="shrink-0"
+        >
+          <Plus className="size-4" />
+          Yeni
+        </Button>
       </div>
 
       <UpcomingIncomeCard />
@@ -44,7 +69,8 @@ export default function Gelirler() {
           Tüm Gelir Kaynakları
         </p>
         <ul className="space-y-2">
-          {SEED_INCOMES.map((income) => {
+          {allIncomes.map((income) => {
+            const isCustom = customSet.has(income.name);
             const override = overrides[income.name];
             const baseAmount =
               income.amountFixed ??
@@ -144,23 +170,49 @@ export default function Gelirler() {
                     </div>
                   )}
 
-                  {income.frequency === 'monthly' && baseAmount > 0 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setRaiseTarget({
-                          name: income.name,
-                          currentAmount: override?.amount ?? baseAmount,
-                        })
-                      }
-                      className="mt-2 w-full"
-                    >
-                      <TrendingUp className="size-3.5" />
-                      {override ? 'Zam planını düzenle' : 'Zam planla'}
-                    </Button>
-                  )}
+                  <div className="mt-2 flex flex-col gap-1.5 sm:flex-row">
+                    {income.frequency === 'monthly' && baseAmount > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setRaiseTarget({
+                            name: income.name,
+                            currentAmount: override?.amount ?? baseAmount,
+                          })
+                        }
+                        className="flex-1"
+                      >
+                        <TrendingUp className="size-3.5" />
+                        {override ? 'Zam planını düzenle' : 'Zam planla'}
+                      </Button>
+                    )}
+                    {isCustom && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            await removeCustom(safeDocId(income.name));
+                            toast.success(`${income.name} silindi`);
+                          } catch (err) {
+                            toast.error('Silinemedi', {
+                              description:
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Bilinmeyen hata',
+                            });
+                          }
+                        }}
+                        className="text-[var(--color-danger)] hover:text-[var(--color-danger)]"
+                      >
+                        <Trash2 className="size-3.5" />
+                        Sil
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -176,6 +228,11 @@ export default function Gelirler() {
           onClose={() => setRaiseTarget(null)}
         />
       )}
+
+      <AddIncomeDialog
+        open={addingIncome}
+        onClose={() => setAddingIncome(false)}
+      />
     </section>
   );
 }

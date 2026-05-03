@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Pencil } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatTRY } from '@/lib/format';
-import { SEED_ACCOUNTS } from '@/db/seed';
+import { SEED_ACCOUNTS, type SeedAccount } from '@/db/seed';
 import type { AccountOwner } from '@/types';
 import { useSalary } from '@/features/income/SalaryProvider';
 import { useCash } from '@/features/cash/CashProvider';
@@ -11,6 +13,9 @@ import { useExpense } from '@/features/expense/ExpenseProvider';
 import { useDebtPayment } from '@/features/debt/DebtPaymentProvider';
 import { useAccountOverrides } from '@/features/accounts/AccountOverridesProvider';
 import { EditAccountBalanceDialog } from '@/features/accounts/EditAccountBalanceDialog';
+import { useCustomAccounts } from '@/features/custom-data/CustomAccountsProvider';
+import { AddAccountDialog } from '@/features/custom-data/AddAccountDialog';
+import { safeDocId } from '@/lib/firestore-helpers';
 
 const OWNER_LABEL: Record<AccountOwner, string> = {
   emre: 'Emre',
@@ -44,13 +49,26 @@ export default function Hesaplar() {
   const { balanceDelta: expenseDelta, totalDelta: expenseTotal } = useExpense();
   const { balanceDelta: debtDelta, totalDelta: debtTotal } = useDebtPayment();
   const { getOverride } = useAccountOverrides();
+  const {
+    items: customAccounts,
+    asSeedList: customAccountsAsSeed,
+    remove: removeCustomAccount,
+  } = useCustomAccounts();
 
   const [editing, setEditing] = useState<{
     name: string;
     effective: number;
   } | null>(null);
+  const [addingAccount, setAddingAccount] = useState(false);
 
-  const accountsWithDelta: AccountRow[] = SEED_ACCOUNTS.map((a) => {
+  const customNameSet = new Set(customAccounts.map((c) => c.name));
+  const allAccounts: SeedAccount[] = [
+    ...customAccountsAsSeed(),
+    ...SEED_ACCOUNTS.filter((s) => !customNameSet.has(s.name)),
+  ];
+
+  const accountsWithDelta: (AccountRow & { isCustom: boolean })[] =
+    allAccounts.map((a) => {
     const sDelta = salaryDelta(a.name);
     const cDelta = cashDelta(a.name);
     const eDelta = expenseDelta(a.name);
@@ -68,6 +86,7 @@ export default function Hesaplar() {
       baseBalance,
       effectiveBalance,
       hasOverride: !!override,
+      isCustom: customNameSet.has(a.name),
       salaryDeltaAmount: sDelta,
       cashDeltaAmount: cDelta,
       expenseDeltaAmount: eDelta,
@@ -86,22 +105,36 @@ export default function Hesaplar() {
   void expenseTotal;
   void debtTotal;
 
-  const groups: Record<AccountOwner, AccountRow[]> = {
-    emre: [],
-    sila: [],
-    shared: [],
-  };
+  const groups: Record<AccountOwner, (AccountRow & { isCustom: boolean })[]> =
+    {
+      emre: [],
+      sila: [],
+      shared: [],
+    };
   accountsWithDelta.forEach((a) => groups[a.owner].push(a));
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold">Kasa</h2>
-        <p className="text-sm text-muted-foreground">
-          Toplam:{' '}
-          <span className="font-semibold tabular-nums">{formatTRY(total)}</span>
-          <span className="ml-1">· tüm hesaplar + evdeki nakit</span>
-        </p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-2xl font-semibold">Kasa</h2>
+          <p className="text-sm text-muted-foreground">
+            Toplam:{' '}
+            <span className="font-semibold tabular-nums">
+              {formatTRY(total)}
+            </span>
+            <span className="ml-1">· tüm hesaplar + evdeki nakit</span>
+          </p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => setAddingAccount(true)}
+          className="shrink-0"
+        >
+          <Plus className="size-4" />
+          Yeni
+        </Button>
       </div>
 
       {(['emre', 'sila', 'shared'] as const).map((owner) => {
@@ -169,7 +202,7 @@ export default function Hesaplar() {
                         )}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <p className="font-semibold tabular-nums">
                         {formatTRY(account.effectiveBalance)}
                       </p>
@@ -186,6 +219,28 @@ export default function Hesaplar() {
                       >
                         <Pencil className="size-3.5" />
                       </button>
+                      {account.isCustom && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await removeCustomAccount(safeDocId(account.name));
+                              toast.success(`${account.name} silindi`);
+                            } catch (err) {
+                              toast.error('Silinemedi', {
+                                description:
+                                  err instanceof Error
+                                    ? err.message
+                                    : 'Bilinmeyen hata',
+                              });
+                            }
+                          }}
+                          className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-[var(--color-danger)]"
+                          aria-label="Hesabı sil"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -207,6 +262,11 @@ export default function Hesaplar() {
           currentEffective={editing.effective}
         />
       )}
+
+      <AddAccountDialog
+        open={addingAccount}
+        onClose={() => setAddingAccount(false)}
+      />
     </section>
   );
 }

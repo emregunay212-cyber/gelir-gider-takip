@@ -1,4 +1,5 @@
-import { Check } from 'lucide-react';
+import { useState } from 'react';
+import { Check, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +9,9 @@ import { formatTRY, monthKey, monthLabel } from '@/lib/format';
 import { SEED_DEBTS, type SeedDebt } from '@/db/seed';
 import { useDebtPayment } from '@/features/debt/DebtPaymentProvider';
 import { celebrateSmall, celebrateSuccess } from '@/lib/confetti';
+import { useCustomDebts } from '@/features/custom-data/CustomDebtsProvider';
+import { AddDebtDialog } from '@/features/custom-data/AddDebtDialog';
+import { safeDocId } from '@/lib/firestore-helpers';
 
 const OWNER_LABEL: Record<'emre' | 'sila', string> = {
   emre: 'Emre',
@@ -30,14 +34,27 @@ export default function Borclar() {
     monthlyPendingTotal,
     monthlyPaidTotal,
   } = useDebtPayment();
+  const {
+    items: customDebts,
+    asSeedList: customDebtsAsSeed,
+    remove: removeCustomDebt,
+  } = useCustomDebts();
+
+  const [addingDebt, setAddingDebt] = useState(false);
+
+  const customSet = new Set(customDebts.map((c) => c.name));
+  const allDebts: SeedDebt[] = [
+    ...customDebtsAsSeed(),
+    ...SEED_DEBTS.filter((s) => !customSet.has(s.name)),
+  ];
 
   const currentMonth = monthKey();
   const monthLabelText = monthLabel(currentMonth);
 
-  const active = SEED_DEBTS.filter(
-    (d) => !d.isPaidOff && !isClosedByPayments(d.name),
-  ).sort((a, b) => b.monthlyPayment - a.monthlyPayment);
-  const closed = SEED_DEBTS.filter(
+  const active = allDebts
+    .filter((d) => !d.isPaidOff && !isClosedByPayments(d.name))
+    .sort((a, b) => b.monthlyPayment - a.monthlyPayment);
+  const closed = allDebts.filter(
     (d) => d.isPaidOff || isClosedByPayments(d.name),
   );
 
@@ -47,15 +64,26 @@ export default function Borclar() {
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold">Borçlar</h2>
-        <p className="text-sm text-muted-foreground">
-          Aylık toplam ödeme:{' '}
-          <span className="font-semibold text-[var(--color-danger)]">
-            {formatTRY(totalMonthly)}
-          </span>
-          <span className="ml-1">· {active.length} aktif</span>
-        </p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-2xl font-semibold">Borçlar</h2>
+          <p className="text-sm text-muted-foreground">
+            Aylık toplam ödeme:{' '}
+            <span className="font-semibold text-[var(--color-danger)]">
+              {formatTRY(totalMonthly)}
+            </span>
+            <span className="ml-1">· {active.length} aktif</span>
+          </p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => setAddingDebt(true)}
+          className="shrink-0"
+        >
+          <Plus className="size-4" />
+          Yeni
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -98,6 +126,7 @@ export default function Borclar() {
               paid={isPaid(debt.name, currentMonth)}
               remaining={remainingInstallments(debt.name)}
               principal={effectivePrincipal(debt.name)}
+              isCustom={customSet.has(debt.name)}
               onMark={() => {
                 markPaid(debt.name, currentMonth);
                 const willClose =
@@ -114,6 +143,17 @@ export default function Borclar() {
                 }
               }}
               onUnmark={() => unmarkPaid(debt.name, currentMonth)}
+              onRemoveCustom={async () => {
+                try {
+                  await removeCustomDebt(safeDocId(debt.name));
+                  toast.success(`${debt.name} silindi`);
+                } catch (err) {
+                  toast.error('Silinemedi', {
+                    description:
+                      err instanceof Error ? err.message : 'Bilinmeyen hata',
+                  });
+                }
+              }}
               monthLabel={monthLabelText}
             />
           </motion.div>
@@ -133,8 +173,20 @@ export default function Borclar() {
                 paid={false}
                 remaining={0}
                 principal={undefined}
+                isCustom={customSet.has(debt.name)}
                 onMark={() => undefined}
                 onUnmark={() => undefined}
+                onRemoveCustom={async () => {
+                  try {
+                    await removeCustomDebt(safeDocId(debt.name));
+                    toast.success(`${debt.name} silindi`);
+                  } catch (err) {
+                    toast.error('Silinemedi', {
+                      description:
+                        err instanceof Error ? err.message : 'Bilinmeyen hata',
+                    });
+                  }
+                }}
                 monthLabel={monthLabelText}
                 closed
               />
@@ -142,6 +194,11 @@ export default function Borclar() {
           </ul>
         </div>
       )}
+
+      <AddDebtDialog
+        open={addingDebt}
+        onClose={() => setAddingDebt(false)}
+      />
     </section>
   );
 }
@@ -151,8 +208,10 @@ interface DebtCardProps {
   paid: boolean;
   remaining: number | undefined;
   principal: number | undefined;
+  isCustom: boolean;
   onMark: () => void;
   onUnmark: () => void;
+  onRemoveCustom: () => void;
   monthLabel: string;
   closed?: boolean;
 }
@@ -162,8 +221,10 @@ function DebtCard({
   paid,
   remaining,
   principal,
+  isCustom,
   onMark,
   onUnmark,
+  onRemoveCustom,
   monthLabel,
   closed,
 }: DebtCardProps) {
@@ -233,24 +294,38 @@ function DebtCard({
           </div>
         </div>
 
-        {!closed && (
-          <Button
-            type="button"
-            variant={paid ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={paid ? onUnmark : onMark}
-            className={`mt-2.5 w-full ${
-              paid
-                ? 'bg-[var(--color-success)]/15 text-[var(--color-success)] hover:bg-[var(--color-success)]/25'
-                : ''
-            }`}
-          >
-            {paid && <Check className="size-3.5" />}
-            {paid
-              ? `${monthLabel} ödendi (geri al)`
-              : `${monthLabel} ödendi olarak işaretle`}
-          </Button>
-        )}
+        <div className="mt-2.5 flex items-stretch gap-1.5">
+          {!closed && (
+            <Button
+              type="button"
+              variant={paid ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={paid ? onUnmark : onMark}
+              className={`flex-1 ${
+                paid
+                  ? 'bg-[var(--color-success)]/15 text-[var(--color-success)] hover:bg-[var(--color-success)]/25'
+                  : ''
+              }`}
+            >
+              {paid && <Check className="size-3.5" />}
+              {paid
+                ? `${monthLabel} ödendi (geri al)`
+                : `${monthLabel} ödendi olarak işaretle`}
+            </Button>
+          )}
+          {isCustom && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onRemoveCustom}
+              className="text-[var(--color-danger)] hover:text-[var(--color-danger)]"
+              aria-label="Borcu sil"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

@@ -3,11 +3,12 @@ import { Banknote, Check, Clock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { SEED_INCOMES } from '@/db/seed';
+import { SEED_INCOMES, type SeedIncome } from '@/db/seed';
 import { useSalary } from './SalaryProvider';
 import { formatTRY, monthKey } from '@/lib/format';
 import { SalaryReceivedDialog } from './SalaryReceivedDialog';
 import { CashEntryDialog } from '@/features/cash/CashEntryDialog';
+import { useCustomIncomes } from '@/features/custom-data/CustomIncomesProvider';
 
 interface PendingItem {
   incomeName: string;
@@ -29,10 +30,10 @@ const ACCOUNT_BY_OWNER: Record<'emre' | 'sila', string> = {
   sila: 'Sıla Garanti',
 };
 
-function getMonthlySalaries(): PendingItem[] {
-  return SEED_INCOMES.filter(
-    (i) => i.frequency === 'monthly' && i.category === 'salary',
-  ).map((income) => {
+function getMonthlySalaries(allIncomes: readonly SeedIncome[]): PendingItem[] {
+  return allIncomes
+    .filter((i) => i.frequency === 'monthly' && i.category === 'salary')
+    .map((income) => {
     const defaultAmount =
       income.amountFixed ??
       (income.amountMin != null && income.amountMax != null
@@ -53,10 +54,13 @@ function getMonthlySalaries(): PendingItem[] {
  * Şimdiye kadar manuel olarak alınmış sayılmıyor; gelince "Geldi" butonu ile
  * Gelen Para olarak girilir.
  */
-function getExtraPendingIncomes(currentMonth: string): ExtraIncome[] {
+function getExtraPendingIncomes(
+  allIncomes: readonly SeedIncome[],
+  currentMonth: string,
+): ExtraIncome[] {
   const items: ExtraIncome[] = [];
 
-  for (const income of SEED_INCOMES) {
+  for (const income of allIncomes) {
     if (income.frequency === 'seasonal_range' && income.activeMonths) {
       const active = income.activeMonths.some(
         (r) => currentMonth >= r.startMonth && currentMonth <= r.endMonth,
@@ -118,18 +122,25 @@ function getExtraPendingIncomes(currentMonth: string): ExtraIncome[] {
 
 export function UpcomingIncomeCard() {
   const { isReceived, getReceipt, removeReceipt } = useSalary();
+  const { items: customItems, asSeedList: customIncomesAsSeed } =
+    useCustomIncomes();
   const [openItem, setOpenItem] = useState<PendingItem | null>(null);
   const [openExtra, setOpenExtra] = useState<ExtraIncome | null>(null);
 
   const currentMonth = monthKey();
-  const all = getMonthlySalaries();
+  const customNameSet = new Set(customItems.map((c) => c.name));
+  const allIncomes: SeedIncome[] = [
+    ...customIncomesAsSeed(),
+    ...SEED_INCOMES.filter((s) => !customNameSet.has(s.name)),
+  ];
+  const all = getMonthlySalaries(allIncomes);
   const pending = all.filter(
     (item) => !isReceived(item.incomeName, currentMonth),
   );
   const received = all.filter((item) =>
     isReceived(item.incomeName, currentMonth),
   );
-  const extras = getExtraPendingIncomes(currentMonth);
+  const extras = getExtraPendingIncomes(allIncomes, currentMonth);
 
   if (pending.length === 0 && received.length === 0 && extras.length === 0) {
     return null;

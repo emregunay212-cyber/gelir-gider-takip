@@ -12,6 +12,9 @@ import { DebtPaymentProvider } from './features/debt/DebtPaymentProvider';
 import { IncomeOverridesProvider } from './features/income-overrides/IncomeOverridesProvider';
 import { SettingsProvider } from './features/settings/SettingsProvider';
 import { AccountOverridesProvider } from './features/accounts/AccountOverridesProvider';
+import { CustomIncomesProvider } from './features/custom-data/CustomIncomesProvider';
+import { CustomAccountsProvider } from './features/custom-data/CustomAccountsProvider';
+import { CustomDebtsProvider } from './features/custom-data/CustomDebtsProvider';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -32,7 +35,13 @@ createRoot(rootElement).render(
                     <DebtPaymentProvider>
                       <IncomeOverridesProvider>
                         <AccountOverridesProvider>
-                          <App />
+                          <CustomIncomesProvider>
+                            <CustomAccountsProvider>
+                              <CustomDebtsProvider>
+                                <App />
+                              </CustomDebtsProvider>
+                            </CustomAccountsProvider>
+                          </CustomIncomesProvider>
                         </AccountOverridesProvider>
                       </IncomeOverridesProvider>
                     </DebtPaymentProvider>
