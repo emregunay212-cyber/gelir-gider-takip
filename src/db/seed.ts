@@ -108,7 +108,7 @@ export const SEED_DEBTS: readonly SeedDebt[] = [
     ownerKey: 'emre',
     type: 'fixed_installment',
     bankOrCreditor: 'Evkur',
-    monthlyPayment: 5440,
+    monthlyPayment: 5470,
     totalInstallments: 21,
     remainingInstallments: 21,
   },
