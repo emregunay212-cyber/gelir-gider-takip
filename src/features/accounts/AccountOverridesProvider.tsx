@@ -10,8 +10,10 @@ import {
   safeDocId,
   useFirestoreCollection,
 } from '../../lib/firestore-helpers';
+import { SEED_ACCOUNT_OVERRIDES } from '../../db/seed';
 
 const CLEANUP_FLAG = 'accounts_cleanup_2026_05_v1';
+const SEED_OVERRIDE_FLAG = 'accounts_seed_override_2026_05_13_v1';
 
 /**
  * Hesap bakiye override — kullanıcı seed bakiye + delta hesabını
@@ -93,6 +95,35 @@ export function AccountOverridesProvider({ children }: ProviderProps) {
       }
     })();
   }, [ready, items, remove]);
+
+  // 2026-05-13 seed override: kullanıcının verdiği gerçek bakiyeleri
+  // override olarak yaz. setAt = migration anı → geçmiş delta'lar bu hesaplar
+  // için yok sayılır, yeni hareketler override.amount'un üstüne eklenir.
+  // Cleanup'tan sonra çalışır (CLEANUP_FLAG set olmadan SEED_OVERRIDE çalışmaz).
+  useEffect(() => {
+    if (!ready) return;
+    if (typeof localStorage === 'undefined') return;
+    if (!localStorage.getItem(CLEANUP_FLAG)) return; // cleanup tamamlanmadan başlama
+    if (localStorage.getItem(SEED_OVERRIDE_FLAG)) return;
+    void (async () => {
+      try {
+        const now = new Date().toISOString();
+        await Promise.all(
+          SEED_ACCOUNT_OVERRIDES.map((acc) =>
+            upsert({
+              id: safeDocId(acc.name),
+              accountName: acc.name,
+              amount: acc.amount,
+              setAt: now,
+            }),
+          ),
+        );
+        localStorage.setItem(SEED_OVERRIDE_FLAG, '1');
+      } catch {
+        // sessizce geç
+      }
+    })();
+  }, [ready, upsert]);
 
   const value = useMemo<AccountOverridesContextValue>(
     () => ({

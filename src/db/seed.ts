@@ -81,11 +81,33 @@ export const SEED_USERS: readonly SeedUser[] = [
 // AccountOverridesProvider ve CustomAccountsProvider'da
 // `accounts_cleanup_2026_05_v1` flag'iyle eski override/custom kayıtları
 // otomatik temizlenir.
+//
+// balance değerleri = ŞU ANDAKİ gerçek bakiye (override silinirse yine doğru
+// görünür — geçmiş delta'lar yine eklenir tabii, bu yüzden override seed'i
+// de zorunlu).
 export const SEED_ACCOUNTS: readonly SeedAccount[] = [
   { name: 'Emre Garanti', type: 'bank', owner: 'emre', balance: 6952.12, bankName: 'Garanti BBVA' },
   { name: 'Emre Getir', type: 'bank', owner: 'emre', balance: 505.38, bankName: 'Getir Finans' },
   { name: 'Sıla Denizbank', type: 'bank', owner: 'sila', balance: 24198.92, bankName: 'DenizBank' },
   { name: 'Sıla Sodexo', type: 'bank', owner: 'sila', balance: 4446.47, bankName: 'Sodexo' },
+];
+
+/**
+ * 2026-05-13 reset: kullanıcının verdiği bakiyeler MUTLAK kabul edilir.
+ * AccountOverridesProvider migration bunları override olarak Firestore'a
+ * yazar (setAt = migration anı). Geçmiş delta'lar (Mayıs maaş, harcama,
+ * borç ödemesi, fatura ödemesi) artık bu 4 hesap için sayılmaz.
+ *
+ * Yeni hareketler (override.setAt SONRASI) override.amount'un üstüne eklenir.
+ */
+export const SEED_ACCOUNT_OVERRIDES: readonly {
+  name: string;
+  amount: number;
+}[] = [
+  { name: 'Emre Garanti', amount: 6952.12 },
+  { name: 'Emre Getir', amount: 505.38 },
+  { name: 'Sıla Denizbank', amount: 24198.92 },
+  { name: 'Sıla Sodexo', amount: 4446.47 },
 ];
 
 // SEED remainingInstallments = "Toplam taksit sayısı" (Mayıs ödendiği zaman kalan).
