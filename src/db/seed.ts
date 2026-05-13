@@ -77,13 +77,15 @@ export const SEED_USERS: readonly SeedUser[] = [
   { displayName: 'Sıla', color: '#ec4899' },
 ];
 
+// 2026-05-13: Kullanıcı bakiye reset yaptı. Sadece bu 4 hesap kalır.
+// AccountOverridesProvider ve CustomAccountsProvider'da
+// `accounts_cleanup_2026_05_v1` flag'iyle eski override/custom kayıtları
+// otomatik temizlenir.
 export const SEED_ACCOUNTS: readonly SeedAccount[] = [
-  { name: 'Emre Garanti', type: 'bank', owner: 'emre', balance: 21544.25, bankName: 'Garanti BBVA' },
+  { name: 'Emre Garanti', type: 'bank', owner: 'emre', balance: 6952.12, bankName: 'Garanti BBVA' },
   { name: 'Emre Getir', type: 'bank', owner: 'emre', balance: 505.38, bankName: 'Getir Finans' },
-  { name: 'Emre Akbank', type: 'bank', owner: 'emre', balance: 1200.0, bankName: 'Akbank' },
-  { name: 'Sıla Denizbank', type: 'bank', owner: 'sila', balance: 5857.64, bankName: 'DenizBank' },
-  { name: 'Sıla Garanti', type: 'bank', owner: 'sila', balance: 814.45, bankName: 'Garanti BBVA' },
-  { name: 'Evdeki Nakit', type: 'cash', owner: 'shared', balance: 7900.0 },
+  { name: 'Sıla Denizbank', type: 'bank', owner: 'sila', balance: 24198.92, bankName: 'DenizBank' },
+  { name: 'Sıla Sodexo', type: 'bank', owner: 'sila', balance: 4446.47, bankName: 'Sodexo' },
 ];
 
 // SEED remainingInstallments = "Toplam taksit sayısı" (Mayıs ödendiği zaman kalan).

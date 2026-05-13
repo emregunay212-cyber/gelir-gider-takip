@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   type ReactNode,
 } from 'react';
@@ -9,6 +10,8 @@ import {
   safeDocId,
   useFirestoreCollection,
 } from '../../lib/firestore-helpers';
+
+const CLEANUP_FLAG = 'accounts_cleanup_2026_05_v1';
 
 /**
  * Hesap bakiye override — kullanıcı seed bakiye + delta hesabını
@@ -70,6 +73,26 @@ interface ProviderProps {
 export function AccountOverridesProvider({ children }: ProviderProps) {
   const { items, ready, upsert, remove } =
     useFirestoreCollection<AccountOverride>(COLLECTION, validate);
+
+  // 2026-05-13 cleanup: kullanıcı bakiye reset istedi, eski override'lar
+  // (yanlış girilmiş manuel bakiyeler) tek seferlik silinir.
+  useEffect(() => {
+    if (!ready) return;
+    if (typeof localStorage === 'undefined') return;
+    if (localStorage.getItem(CLEANUP_FLAG)) return;
+    if (items.length === 0) {
+      localStorage.setItem(CLEANUP_FLAG, '1');
+      return;
+    }
+    void (async () => {
+      try {
+        await Promise.all(items.map((item) => remove(item.id)));
+        localStorage.setItem(CLEANUP_FLAG, '1');
+      } catch {
+        // sessizce geç — bir sonraki açılışta tekrar denenebilir
+      }
+    })();
+  }, [ready, items, remove]);
 
   const value = useMemo<AccountOverridesContextValue>(
     () => ({

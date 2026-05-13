@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   type ReactNode,
 } from 'react';
@@ -11,6 +12,8 @@ import {
 } from '../../lib/firestore-helpers';
 import type { SeedAccount } from '../../db/seed';
 import type { AccountOwner, AccountType } from '../../types';
+
+const CLEANUP_FLAG = 'custom_accounts_cleanup_2026_05_v1';
 
 /**
  * UI'dan eklenen kullanıcı tanımlı hesaplar (Sodexo Market kartı,
@@ -71,6 +74,26 @@ interface ProviderProps {
 export function CustomAccountsProvider({ children }: ProviderProps) {
   const { items, ready, upsert, remove } =
     useFirestoreCollection<CustomAccount>(COLLECTION, validate);
+
+  // 2026-05-13 cleanup: SEED_ACCOUNTS değişti, eski custom hesaplar
+  // (Sodexo Market gelir kalemi vs.) tek seferlik silinir.
+  useEffect(() => {
+    if (!ready) return;
+    if (typeof localStorage === 'undefined') return;
+    if (localStorage.getItem(CLEANUP_FLAG)) return;
+    if (items.length === 0) {
+      localStorage.setItem(CLEANUP_FLAG, '1');
+      return;
+    }
+    void (async () => {
+      try {
+        await Promise.all(items.map((item) => remove(item.id)));
+        localStorage.setItem(CLEANUP_FLAG, '1');
+      } catch {
+        // sessizce geç
+      }
+    })();
+  }, [ready, items, remove]);
 
   const value = useMemo<ContextValue>(
     () => ({
