@@ -101,8 +101,10 @@ export function EditAccountBalanceDialog({
               autoFocus
             />
             <p className="text-xs text-muted-foreground">
-              Bankaya bakıp gerçek tutarı gir. Sonraki maaş, harcama ve borç
-              ödemeleri bu rakamın üzerine eklenmeye/çıkarılmaya devam eder.
+              Bankadaki şu anki gerçek bakiyeni gir. Önceki maaş, harcama ve
+              borç hareketleri artık bu hesap için sayılmayacak — yeni rakam
+              mutlak referans olarak alınacak. Bu tarihten sonra yapılan
+              hareketler bu rakamın üstüne eklenir.
             </p>
           </div>
 

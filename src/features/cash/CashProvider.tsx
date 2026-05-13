@@ -24,7 +24,13 @@ interface CashContextValue {
   entries: readonly CashEntry[];
   addEntry: (input: Omit<CashEntry, 'id' | 'createdAt'>) => void;
   removeEntry: (id: string) => void;
-  balanceDelta: (accountName: string) => number;
+  /** Silinen kayıt snapshot'ını aynı ID ile geri yükler (undo). */
+  restoreEntry: (entry: CashEntry) => void;
+  /**
+   * @param sinceDate - ISO timestamp. Verilirse o tarihten SONRA (strict >)
+   * yapılan hareketleri sayar. Override mantığı için kullanılır.
+   */
+  balanceDelta: (accountName: string, sinceDate?: string) => number;
   totalDelta: () => number;
 }
 
@@ -129,9 +135,16 @@ export function CashProvider({ children }: ProviderProps) {
       removeEntry: (id) => {
         void remove(id);
       },
-      balanceDelta: (accountName) =>
+      restoreEntry: (entry) => {
+        void upsert(entry);
+      },
+      balanceDelta: (accountName, sinceDate) =>
         items
-          .filter((e) => e.accountName === accountName)
+          .filter(
+            (e) =>
+              e.accountName === accountName &&
+              (sinceDate ? e.createdAt > sinceDate : true),
+          )
           .reduce(
             (sum, e) => sum + (e.direction === 'in' ? e.amount : -e.amount),
             0,

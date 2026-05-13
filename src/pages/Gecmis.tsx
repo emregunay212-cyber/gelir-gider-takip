@@ -30,9 +30,11 @@ import {
 import { useCash } from '@/features/cash/CashProvider';
 import { Button } from '@/components/ui/button';
 import { ArrowDownCircle, ArrowUpCircle, Receipt } from 'lucide-react';
+import { toast } from 'sonner';
 import { useDebtPayment } from '@/features/debt/DebtPaymentProvider';
 import { useCustomDebts } from '@/features/custom-data/CustomDebtsProvider';
-import { SEED_DEBTS } from '@/db/seed';
+import { useBillPayment } from '@/features/bills/BillPaymentProvider';
+import { SEED_DEBTS, SEED_RECURRING_EXPENSES } from '@/db/seed';
 
 const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
   food: 'Yemek',
@@ -92,9 +94,23 @@ function formatTime(iso: string): string {
 }
 
 export default function Gecmis() {
-  const { entries, monthlyTotal, monthlySavings, removeExpense } = useExpense();
-  const { entries: cashEntries, removeEntry: removeCashEntry } = useCash();
+  const {
+    entries,
+    monthlyTotal,
+    monthlySavings,
+    removeExpense,
+    restoreExpense,
+  } = useExpense();
+  const {
+    entries: cashEntries,
+    removeEntry: removeCashEntry,
+    restoreEntry: restoreCashEntry,
+  } = useCash();
   const { payments: debtPayments, unmarkPaid } = useDebtPayment();
+  const {
+    payments: billPayments,
+    unmarkPaid: unmarkBillPaid,
+  } = useBillPayment();
   const { asSeedList: customDebtsAsSeed } = useCustomDebts();
   const { dailyLimit } = useSettings();
   const [month, setMonth] = useState<string>(() => monthKey());
@@ -131,6 +147,26 @@ export default function Gecmis() {
       })
       .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
   }, [debtPayments, customDebtsAsSeed, month]);
+
+  // Bu ay yapılan fatura ödemeleri
+  const billPaymentsInMonth = useMemo(() => {
+    return billPayments
+      .filter((p) => p.monthKey === month)
+      .map((p) => {
+        const bill = SEED_RECURRING_EXPENSES.find((b) => b.name === p.billName);
+        return {
+          ...p,
+          ownerKey: bill?.ownerKey,
+          category: bill?.category,
+        };
+      })
+      .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+  }, [billPayments, month]);
+
+  const billPaymentsTotal = billPaymentsInMonth.reduce(
+    (sum, p) => sum + p.amount,
+    0,
+  );
 
   const debtPaymentsTotal = debtPaymentsInMonth.reduce(
     (sum, p) => sum + p.monthlyPayment,
@@ -412,7 +448,16 @@ export default function Gecmis() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeCashEntry(entry.id)}
+                        onClick={() => {
+                          removeCashEntry(entry.id);
+                          toast.success('Hareket silindi', {
+                            action: {
+                              label: 'Geri al',
+                              onClick: () => restoreCashEntry(entry),
+                            },
+                            duration: 5000,
+                          });
+                        }}
                         className="h-7 px-1.5 text-muted-foreground hover:text-[var(--color-danger)]"
                         aria-label="Hareketi sil"
                       >
@@ -505,9 +550,82 @@ export default function Gecmis() {
         </Card>
       )}
 
+      {/* Fatura Ödemeleri */}
+      {billPaymentsInMonth.length > 0 && (
+        <Card>
+          <CardContent className="p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <Receipt className="size-3" />
+                Fatura Ödemeleri · {billPaymentsInMonth.length} öge
+              </p>
+              <p className="text-[11px] font-semibold tabular-nums text-[var(--color-danger)]">
+                −{formatTRY(billPaymentsTotal)}
+              </p>
+            </div>
+            <ul className="space-y-1.5">
+              {billPaymentsInMonth.map((payment) => {
+                const time = formatTime(payment.paidAt);
+                return (
+                  <li
+                    key={payment.id}
+                    className="flex items-start justify-between gap-2 rounded-lg border border-[var(--color-warning)]/20 bg-[var(--color-warning)]/5 px-2.5 py-2"
+                  >
+                    <div className="flex min-w-0 items-start gap-2">
+                      <Receipt className="mt-0.5 size-4 shrink-0 text-[var(--color-warning)]" />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {payment.ownerKey && (
+                            <Badge
+                              variant="outline"
+                              className={`px-1.5 py-0 text-[10px] font-medium ${
+                                SPENDER_BADGE[
+                                  payment.ownerKey as ExpenseSpender
+                                ]
+                              }`}
+                            >
+                              {payment.ownerKey === 'emre' ? 'Emre' : 'Sıla'}
+                            </Badge>
+                          )}
+                          <p className="text-sm font-medium">
+                            {payment.billName}
+                          </p>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          {payment.accountName ?? 'hesap belirtilmedi'}
+                          {time && ` · ${time}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-semibold tabular-nums text-[var(--color-danger)]">
+                        −{formatTRY(payment.amount)}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          unmarkBillPaid(payment.billName, payment.monthKey)
+                        }
+                        className="h-7 px-1.5 text-muted-foreground hover:text-[var(--color-danger)]"
+                        aria-label="Ödemeyi geri al"
+                      >
+                        <Trash2 className="size-3" />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       {dayGroups.length === 0 &&
         cashInMonth.length === 0 &&
-        debtPaymentsInMonth.length === 0 && (
+        debtPaymentsInMonth.length === 0 &&
+        billPaymentsInMonth.length === 0 && (
           <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
             {monthLabel(month)} için henüz harcama yok.
           </div>
@@ -640,6 +758,16 @@ export default function Gecmis() {
                                 {time && (
                                   <DetailRow label="🕒 Saat" value={time} />
                                 )}
+                                {expense.updatedBy && expense.updatedAt && (
+                                  <DetailRow
+                                    label="✏️ Son düzenleme"
+                                    value={`${
+                                      expense.updatedBy === 'emre'
+                                        ? 'Emre'
+                                        : 'Sıla'
+                                    } · ${formatTime(expense.updatedAt)}`}
+                                  />
+                                )}
                                 <div className="flex justify-end gap-1 pt-1">
                                   <button
                                     type="button"
@@ -655,7 +783,17 @@ export default function Gecmis() {
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => removeExpense(expense.id)}
+                                    onClick={() => {
+                                      removeExpense(expense.id);
+                                      toast.success('Harcama silindi', {
+                                        action: {
+                                          label: 'Geri al',
+                                          onClick: () =>
+                                            restoreExpense(expense),
+                                        },
+                                        duration: 5000,
+                                      });
+                                    }}
                                     aria-label="Harcamayı sil"
                                     className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-[var(--color-danger)]"
                                   >

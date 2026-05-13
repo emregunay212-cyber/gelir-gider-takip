@@ -13,6 +13,8 @@ import { useExpense } from '@/features/expense/ExpenseProvider';
 import { useDebtPayment } from '@/features/debt/DebtPaymentProvider';
 import { useAccountOverrides } from '@/features/accounts/AccountOverridesProvider';
 import { EditAccountBalanceDialog } from '@/features/accounts/EditAccountBalanceDialog';
+import { computeAccountBreakdown } from '@/features/accounts/computeAccountBalance';
+import { useBillPayment } from '@/features/bills/BillPaymentProvider';
 import { useCustomAccounts } from '@/features/custom-data/CustomAccountsProvider';
 import { AddAccountDialog } from '@/features/custom-data/AddAccountDialog';
 import { safeDocId } from '@/lib/firestore-helpers';
@@ -41,13 +43,15 @@ interface AccountRow {
   cashDeltaAmount: number;
   expenseDeltaAmount: number;
   debtDeltaAmount: number;
+  billDeltaAmount: number;
 }
 
 export default function Hesaplar() {
-  const { balanceDelta: salaryDelta, totalDelta: salaryTotal } = useSalary();
-  const { balanceDelta: cashDelta, totalDelta: cashTotal } = useCash();
-  const { balanceDelta: expenseDelta, totalDelta: expenseTotal } = useExpense();
-  const { balanceDelta: debtDelta, totalDelta: debtTotal } = useDebtPayment();
+  const { balanceDelta: salaryDelta } = useSalary();
+  const { balanceDelta: cashDelta } = useCash();
+  const { balanceDelta: expenseDelta } = useExpense();
+  const { balanceDelta: debtDelta } = useDebtPayment();
+  const { balanceDelta: billsDelta } = useBillPayment();
   const { getOverride } = useAccountOverrides();
   const {
     items: customAccounts,
@@ -67,43 +71,39 @@ export default function Hesaplar() {
     ...SEED_ACCOUNTS.filter((s) => !customNameSet.has(s.name)),
   ];
 
+  const deltas = {
+    salary: salaryDelta,
+    cash: cashDelta,
+    expense: expenseDelta,
+    debt: debtDelta,
+    bills: billsDelta,
+  };
+
   const accountsWithDelta: (AccountRow & { isCustom: boolean })[] =
     allAccounts.map((a) => {
-    const sDelta = salaryDelta(a.name);
-    const cDelta = cashDelta(a.name);
-    const eDelta = expenseDelta(a.name);
-    const dDelta = debtDelta(a.name);
-    const override = getOverride(a.name);
-    // Override varsa: kullanıcının girdiği tutar = baseBalance kabul edilir,
-    // delta'lar (override SONRASI yapılan hareketler) yine eklenir.
-    const baseBalance = override ? override.amount : a.balance;
-    const effectiveBalance = baseBalance + sDelta + cDelta - eDelta - dDelta;
-    return {
-      name: a.name,
-      type: a.type,
-      owner: a.owner,
-      bankName: a.bankName,
-      baseBalance,
-      effectiveBalance,
-      hasOverride: !!override,
-      isCustom: customNameSet.has(a.name),
-      salaryDeltaAmount: sDelta,
-      cashDeltaAmount: cDelta,
-      expenseDeltaAmount: eDelta,
-      debtDeltaAmount: dDelta,
-    };
-  });
+      const override = getOverride(a.name);
+      const breakdown = computeAccountBreakdown(a, override, deltas);
+      return {
+        name: a.name,
+        type: a.type,
+        owner: a.owner,
+        bankName: a.bankName,
+        baseBalance: breakdown.baseBalance,
+        effectiveBalance: breakdown.effectiveBalance,
+        hasOverride: breakdown.hasOverride,
+        isCustom: customNameSet.has(a.name),
+        salaryDeltaAmount: breakdown.salaryDelta,
+        cashDeltaAmount: breakdown.cashDelta,
+        expenseDeltaAmount: breakdown.expenseDelta,
+        debtDeltaAmount: breakdown.debtDelta,
+        billDeltaAmount: breakdown.billsDelta,
+      };
+    });
 
-  const total =
-    accountsWithDelta.reduce((acc, a) => acc + a.effectiveBalance, 0) +
-    // Hareketleri ikinci kez eklememek için yukarıda zaten dahil edildi.
-    // Aşağıdaki sumlar SADECE total'a değil, "otomatik" hesabı tek satırda
-    // doğrulamak için referans olarak duruyor — kullanılmıyor.
-    0;
-  void salaryTotal;
-  void cashTotal;
-  void expenseTotal;
-  void debtTotal;
+  const total = accountsWithDelta.reduce(
+    (acc, a) => acc + a.effectiveBalance,
+    0,
+  );
 
   const groups: Record<AccountOwner, (AccountRow & { isCustom: boolean })[]> =
     {
@@ -198,6 +198,11 @@ export default function Hesaplar() {
                         {account.debtDeltaAmount > 0 && (
                           <span className="ml-1 text-[var(--color-danger)]">
                             · −{formatTRY(account.debtDeltaAmount)} borç
+                          </span>
+                        )}
+                        {account.billDeltaAmount > 0 && (
+                          <span className="ml-1 text-[var(--color-danger)]">
+                            · −{formatTRY(account.billDeltaAmount)} fatura
                           </span>
                         )}
                       </p>

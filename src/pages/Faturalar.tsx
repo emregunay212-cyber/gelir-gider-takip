@@ -8,8 +8,9 @@ import { formatTRY, monthKey } from '@/lib/format';
 import { SEED_RECURRING_EXPENSES } from '@/db/seed';
 import type { RecurringExpenseCategory } from '@/types';
 import { useBills } from '@/features/bills/BillsProvider';
+import { useBillPayment } from '@/features/bills/BillPaymentProvider';
 import { EditBillDialog } from '@/features/bills/EditBillDialog';
-import { celebrateSmall } from '@/lib/confetti';
+import { PayBillDialog } from '@/features/bills/PayBillDialog';
 
 const CATEGORY_LABEL: Record<RecurringExpenseCategory, string> = {
   electricity: 'Elektrik',
@@ -32,9 +33,13 @@ const CATEGORY_ICON: Record<RecurringExpenseCategory, string> = {
 };
 
 export default function Faturalar() {
-  const { getAmount, isPaid, togglePaid, monthlyTotal, monthlyPaidTotal } =
-    useBills();
+  const { getAmount, monthlyTotal, monthlyPaidTotal } = useBills();
+  const { isPaid, unmarkPaid } = useBillPayment();
   const [editing, setEditing] = useState<string | null>(null);
+  const [payTarget, setPayTarget] = useState<{
+    name: string;
+    amount: number;
+  } | null>(null);
   const currentMonth = monthKey();
   const total = monthlyTotal();
   const paidTotal = monthlyPaidTotal(currentMonth);
@@ -157,8 +162,11 @@ export default function Faturalar() {
                     size="sm"
                     variant={paid ? 'secondary' : 'outline'}
                     onClick={() => {
-                      togglePaid(bill.name, currentMonth);
-                      if (!paid) celebrateSmall();
+                      if (paid) {
+                        unmarkPaid(bill.name, currentMonth);
+                      } else {
+                        setPayTarget({ name: bill.name, amount });
+                      }
                     }}
                     className={`mt-2 w-full ${
                       paid
@@ -184,6 +192,16 @@ export default function Faturalar() {
           billName={editing}
           open
           onClose={() => setEditing(null)}
+        />
+      )}
+
+      {payTarget && (
+        <PayBillDialog
+          open
+          onClose={() => setPayTarget(null)}
+          billName={payTarget.name}
+          monthKey={currentMonth}
+          amount={payTarget.amount}
         />
       )}
     </section>

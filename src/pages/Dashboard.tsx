@@ -22,22 +22,12 @@ import { useExpense } from '@/features/expense/ExpenseProvider';
 import { TodaySpendingCard } from '@/features/expense/TodaySpendingCard';
 import { TodayExpensesList } from '@/features/expense/TodayExpensesList';
 import { useBills } from '@/features/bills/BillsProvider';
+import { useBillPayment } from '@/features/bills/BillPaymentProvider';
 import { useDebtPayment } from '@/features/debt/DebtPaymentProvider';
 import { useIncomeOverrides } from '@/features/income-overrides/IncomeOverridesProvider';
 import { useAccountOverrides } from '@/features/accounts/AccountOverridesProvider';
+import { computeAccountEffectiveBalance } from '@/features/accounts/computeAccountBalance';
 import { useCustomAccounts } from '@/features/custom-data/CustomAccountsProvider';
-
-function sumAccountBalances(
-  accounts: ReadonlyArray<{ name: string; type: string; balance: number }>,
-  getOverride: (name: string) => { amount: number } | undefined,
-): number {
-  return accounts
-    .filter((a) => a.type !== 'virtual_kasa')
-    .reduce((acc, a) => {
-      const override = getOverride(a.name);
-      return acc + (override ? override.amount : a.balance);
-    }, 0);
-}
 
 function sumMonthlyDebtsActive(
   debts: readonly SeedDebt[],
@@ -76,15 +66,17 @@ function estimatedMonthlyIncome(
 }
 
 export default function Dashboard() {
-  const { totalDelta: salaryDelta } = useSalary();
-  const { totalDelta: cashDelta } = useCash();
+  const { balanceDelta: salaryBalanceDelta } = useSalary();
+  const { balanceDelta: cashBalanceDelta } = useCash();
   const {
-    totalDelta: expenseDelta,
+    balanceDelta: expenseBalanceDelta,
     monthlyTotal: expenseMonthly,
     monthlySavings,
   } = useExpense();
   const { monthlyTotal: billsMonthly } = useBills();
-  const { totalDelta: debtPaidDelta, isClosedByPayments } = useDebtPayment();
+  const { balanceDelta: billsBalanceDelta } = useBillPayment();
+  const { balanceDelta: debtBalanceDelta, isClosedByPayments } =
+    useDebtPayment();
   const { resolveAmount } = useIncomeOverrides();
   const { dailyLimit } = useSettings();
   const { getOverride: getAccountOverride } = useAccountOverrides();
@@ -112,12 +104,28 @@ export default function Dashboard() {
     ...SEED_DEBTS.filter((s) => !customDebtSet.has(s.name)),
   ];
 
-  const totalCash =
-    sumAccountBalances(allAccounts, getAccountOverride) +
-    salaryDelta() +
-    cashDelta() -
-    expenseDelta() -
-    debtPaidDelta();
+  const accountDeltas = {
+    salary: salaryBalanceDelta,
+    cash: cashBalanceDelta,
+    expense: expenseBalanceDelta,
+    debt: debtBalanceDelta,
+    bills: billsBalanceDelta,
+  };
+
+  // Per-account hesap: override varsa setAt sonrası delta'lar uygulanır,
+  // yoksa seed.balance + tüm delta'lar. Hesaplar.tsx ile aynı formül.
+  const totalCash = allAccounts
+    .filter((a) => a.type !== 'virtual_kasa')
+    .reduce(
+      (acc, a) =>
+        acc +
+        computeAccountEffectiveBalance(
+          a,
+          getAccountOverride(a.name),
+          accountDeltas,
+        ),
+      0,
+    );
 
   const closedSet = new Set(
     allDebts.filter((d) => isClosedByPayments(d.name)).map((d) => d.name),

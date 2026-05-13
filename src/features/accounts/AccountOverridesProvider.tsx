@@ -14,14 +14,18 @@ import {
  * Hesap bakiye override — kullanıcı seed bakiye + delta hesabını
  * manuel olarak ezmek istediğinde kullanılır.
  *
- * `effectiveBalance = override ?? (seedBalance + sumDeltas)`
+ * **Semantik**: `override = mutlak bakiye`.
  *
- * `setOverride` çağrılınca ileride yapılacak hareketler override'a eklenmez —
- * override mutlak değerdir. Kullanıcı banka hesabını bakıp 12.345 TL girerse,
- * sonraki maaş yatınca delta zaten ayrı tutulduğu için yine 12.345 + maaş gösterilir.
+ * - `override.setAt`'tan ÖNCE yapılan delta'lar (maaş, harcama, borç, fatura)
+ *   bu hesap için yok sayılır.
+ * - `override.setAt`'tan SONRA yapılan hareketler override.amount'un üstüne
+ *   eklenir / çıkarılır.
  *
- * Bu yüzden override = "şu an hesabın gerçek bakiyesi" olarak yorumlanır,
- * delta'lar override'ın üstüne eklenmeye devam eder. Tam reset için sıfırla butonu var.
+ * Implementasyon: delta provider'ları `balanceDelta(accountName, sinceDate?)`
+ * imzasıyla `createdAt > sinceDate` (strict greater) filtresi uygular.
+ *
+ * Tam reset için "Sıfırla (otomatik hesap)" butonu override doc'unu siler →
+ * hesap seed.balance + tüm delta'lar mantığına döner.
  */
 
 export interface AccountOverride {

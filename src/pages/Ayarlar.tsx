@@ -329,7 +329,7 @@ export default function Ayarlar() {
             <Button
               type="button"
               variant="outline"
-              onClick={downloadJson}
+              onClick={() => downloadJson()}
               className="w-full"
             >
               <Download className="size-4" />
@@ -338,7 +338,7 @@ export default function Ayarlar() {
             <Button
               type="button"
               variant="outline"
-              onClick={downloadExpensesCsv}
+              onClick={() => downloadExpensesCsv()}
               className="w-full"
             >
               <FileSpreadsheet className="size-4" />

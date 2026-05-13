@@ -30,6 +30,10 @@ export interface ExpenseEntry {
   excludeFromDailyLimit?: boolean;
   /** Yakıt harcamalarında araç kilometresi (km). */
   odometerKm?: number;
+  /** Audit trail: son edit eden kim */
+  updatedBy?: ExpenseSpender;
+  /** Audit trail: son edit zamanı (ISO) */
+  updatedAt?: string;
 }
 
 interface ExpenseContextValue {
@@ -37,6 +41,11 @@ interface ExpenseContextValue {
   addExpense: (input: Omit<ExpenseEntry, 'id' | 'createdAt'>) => void;
   updateExpense: (id: string, updates: Partial<Omit<ExpenseEntry, 'id' | 'createdAt'>>) => void;
   removeExpense: (id: string) => void;
+  /**
+   * Silinen harcamayı aynı ID + createdAt ile geri yükler.
+   * Undo akışı için: sil sonrası snapshot'ı sakla, kullanıcı geri almak isterse bu çağrılır.
+   */
+  restoreExpense: (entry: ExpenseEntry) => void;
   todaysExpenses: () => readonly ExpenseEntry[];
   todaysTotal: () => number;
   totalForDate: (date: string) => number;
@@ -48,7 +57,11 @@ interface ExpenseContextValue {
    * Pozitif = limit altında kaldık (tasarruf), negatif = aşım var.
    */
   monthlySavings: (month: string, dailyLimit: number) => number;
-  balanceDelta: (accountName: string) => number;
+  /**
+   * @param sinceDate - ISO timestamp. Verilirse o tarihten SONRA (strict >)
+   * yapılan harcamaları sayar. Override mantığı için kullanılır.
+   */
+  balanceDelta: (accountName: string, sinceDate?: string) => number;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -106,6 +119,12 @@ function validateExpenseEntry(raw: DocumentData): ExpenseEntry | null {
   }
   if (typeof raw.odometerKm === 'number' && raw.odometerKm >= 0) {
     entry.odometerKm = raw.odometerKm;
+  }
+  if (raw.updatedBy === 'emre' || raw.updatedBy === 'sila') {
+    entry.updatedBy = raw.updatedBy;
+  }
+  if (typeof raw.updatedAt === 'string' && raw.updatedAt.length > 0) {
+    entry.updatedAt = raw.updatedAt;
   }
   return entry;
 }
@@ -235,6 +254,12 @@ export function ExpenseProvider({ children }: ProviderProps) {
         if (accountName) merged.accountName = accountName;
         if (excludeFromDailyLimit) merged.excludeFromDailyLimit = true;
         if (odometerKm != null && odometerKm >= 0) merged.odometerKm = odometerKm;
+        // Audit trail: updatedBy explicit geçilirse yaz, yoksa eski değeri koru
+        const updatedBy =
+          updates.updatedBy !== undefined ? updates.updatedBy : existing.updatedBy;
+        if (updatedBy) merged.updatedBy = updatedBy;
+        // updatedAt her edit'te yenilenir
+        merged.updatedAt = new Date().toISOString();
 
         upsert(merged).catch((err: unknown) => {
           const message =
@@ -247,6 +272,13 @@ export function ExpenseProvider({ children }: ProviderProps) {
           const message =
             err instanceof Error ? err.message : 'Bilinmeyen hata';
           toast.error('Silinemedi', { description: message });
+        });
+      },
+      restoreExpense: (entry) => {
+        upsert(entry).catch((err: unknown) => {
+          const message =
+            err instanceof Error ? err.message : 'Bilinmeyen hata';
+          toast.error('Geri yüklenemedi', { description: message });
         });
       },
       todaysExpenses: () => todaysList,
@@ -289,9 +321,13 @@ export function ExpenseProvider({ children }: ProviderProps) {
 
         return monthlyBudget - totalSpent;
       },
-      balanceDelta: (accountName) =>
+      balanceDelta: (accountName, sinceDate) =>
         items
-          .filter((e) => e.accountName === accountName)
+          .filter(
+            (e) =>
+              e.accountName === accountName &&
+              (sinceDate ? e.createdAt > sinceDate : true),
+          )
           .reduce((s, e) => s + e.amount, 0),
     };
   }, [items, today, upsert, remove]);

@@ -8,6 +8,7 @@ import { SalaryProvider } from './features/income/SalaryProvider';
 import { CashProvider } from './features/cash/CashProvider';
 import { ExpenseProvider } from './features/expense/ExpenseProvider';
 import { BillsProvider } from './features/bills/BillsProvider';
+import { BillPaymentProvider } from './features/bills/BillPaymentProvider';
 import { DebtPaymentProvider } from './features/debt/DebtPaymentProvider';
 import { IncomeOverridesProvider } from './features/income-overrides/IncomeOverridesProvider';
 import { SettingsProvider } from './features/settings/SettingsProvider';
@@ -31,8 +32,9 @@ createRoot(rootElement).render(
             <SalaryProvider>
               <CashProvider>
                 <ExpenseProvider>
-                  <BillsProvider>
-                    <DebtPaymentProvider>
+                  <BillPaymentProvider>
+                    <BillsProvider>
+                      <DebtPaymentProvider>
                       <IncomeOverridesProvider>
                         <AccountOverridesProvider>
                           <CustomIncomesProvider>
@@ -44,8 +46,9 @@ createRoot(rootElement).render(
                           </CustomIncomesProvider>
                         </AccountOverridesProvider>
                       </IncomeOverridesProvider>
-                    </DebtPaymentProvider>
-                  </BillsProvider>
+                      </DebtPaymentProvider>
+                    </BillsProvider>
+                  </BillPaymentProvider>
                 </ExpenseProvider>
               </CashProvider>
             </SalaryProvider>

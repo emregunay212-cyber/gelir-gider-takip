@@ -2,65 +2,57 @@ import { useExpense } from '../expense/ExpenseProvider';
 import { useCash } from '../cash/CashProvider';
 import { useSalary } from '../income/SalaryProvider';
 import { useBills } from '../bills/BillsProvider';
+import { useBillPayment } from '../bills/BillPaymentProvider';
 import { useDebtPayment } from '../debt/DebtPaymentProvider';
-import { SEED_RECURRING_EXPENSES } from '../../db/seed';
 
 interface ExportPayload {
   exportedAt: string;
   app: 'aile-butce';
-  version: 1;
+  version: 2;
+  range?: { from?: string; to?: string };
   expenses: unknown[];
   cashEntries: unknown[];
   salaryReceipts: unknown[];
   billAmounts: Record<string, number>;
-  billPayments: Record<string, string[]>;
+  billPayments: unknown[];
   debtPayments: unknown[];
+}
+
+export interface ExportDateRange {
+  /** YYYY-MM-DD — bu tarih dahil */
+  from?: string;
+  /** YYYY-MM-DD — bu tarih dahil */
+  to?: string;
 }
 
 export function useDataExport() {
   const { entries: expenses } = useExpense();
   const { entries: cashEntries } = useCash();
   const { receipts: salaryReceipts } = useSalary();
-  const { amounts, isPaid, monthlyTotal: _t } = useBills();
+  const { amounts } = useBills();
+  const { payments: billPayments } = useBillPayment();
   const { payments: debtPayments } = useDebtPayment();
 
-  void _t;
+  function inDateRange(dateStr: string, range?: ExportDateRange): boolean {
+    if (!range) return true;
+    if (range.from && dateStr < range.from) return false;
+    if (range.to && dateStr > range.to) return false;
+    return true;
+  }
 
-  function downloadJson(): void {
-    // Bills paid: tüm seed bills için bilinen ay listesini extract et
-    const billPaymentsByMonth: Record<string, string[]> = {};
-    SEED_RECURRING_EXPENSES.forEach((bill) => {
-      // Tüm ayları düşünmek anlamsız; mevcut state'in raw'unu okumak yerine
-      // exporting eden tarafın tam state'i kopyala (dış paramlar üzerinden)
-      void bill;
-    });
-
+  function downloadJson(range?: ExportDateRange): void {
     const payload: ExportPayload = {
       exportedAt: new Date().toISOString(),
       app: 'aile-butce',
-      version: 1,
-      expenses: [...expenses],
-      cashEntries: [...cashEntries],
+      version: 2,
+      range,
+      expenses: expenses.filter((e) => inDateRange(e.date, range)),
+      cashEntries: cashEntries.filter((e) => inDateRange(e.date, range)),
       salaryReceipts: [...salaryReceipts],
       billAmounts: { ...amounts },
-      billPayments: billPaymentsByMonth,
+      billPayments: [...billPayments],
       debtPayments: [...debtPayments],
     };
-
-    // Bills paid state'i isPaid ile geri inşa et (her bill × her bilinen ay).
-    // Sade bir yaklaşım: ay aralığını bills paidByMonth state'inden almak gerek;
-    // o private — bunun yerine her ay için isPaid'i çağıramayız (range bilinmiyor).
-    // Pragmatic: son 24 ay için dene.
-    const now = new Date();
-    for (let i = 0; i < 24; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const paidNames: string[] = [];
-      SEED_RECURRING_EXPENSES.forEach((bill) => {
-        if (isPaid(bill.name, monthKey)) paidNames.push(bill.name);
-      });
-      if (paidNames.length > 0) billPaymentsByMonth[monthKey] = paidNames;
-    }
 
     const json = JSON.stringify(payload, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
@@ -75,7 +67,7 @@ export function useDataExport() {
     URL.revokeObjectURL(url);
   }
 
-  function downloadExpensesCsv(): void {
+  function downloadExpensesCsv(range?: ExportDateRange): void {
     const headers = [
       'tarih',
       'kim',
@@ -84,7 +76,9 @@ export function useDataExport() {
       'aciklama',
       'hesap',
     ];
-    const rows = [...expenses]
+    const rows = expenses
+      .filter((e) => inDateRange(e.date, range))
+      .slice()
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((e) => [
         e.date,

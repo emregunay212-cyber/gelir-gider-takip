@@ -120,6 +120,18 @@ src/
 
 Detay: [src/db/seed.ts](src/db/seed.ts)
 
+## Bilinen Sınırlamalar
+
+- **Limit değişimi tarihçesi**: Günlük harcama limiti tek sayı olarak saklanır.
+  Limit değiştirilince geçmiş aylar yeni limit ile yeniden hesaplanır. Düzeltme
+  için `limitHistory: {month: limit}[]` koleksiyonu eklenebilir.
+- **Multi-device race**: Firestore last-write-wins. Aynı anda iki cihazdan
+  harcama girilirse kayıp riski düşük ama mümkün.
+- **Multi-user yetkilendirme**: Anonim auth; herkes her şeyi yapabilir. Aile
+  içi güvenli, üçüncü kişi paylaşımı için ek Auth flow gerekli.
+
+Tüm denetim listesi: [docs/AUDIT_CHECKLIST.md](docs/AUDIT_CHECKLIST.md)
+
 ## Komutlar
 
 | Komut | Açıklama |

@@ -33,7 +33,11 @@ interface DebtPaymentContextValue {
   isClosedByPayments: (debtName: string) => boolean;
   monthlyPaidTotal: (monthKey: string) => number;
   monthlyPendingTotal: (monthKey: string) => number;
-  balanceDelta: (accountName: string) => number;
+  /**
+   * @param sinceDate - ISO timestamp. Verilirse o tarihten SONRA (strict >)
+   * yapılan borç ödemelerini sayar. Override mantığı için kullanılır.
+   */
+  balanceDelta: (accountName: string, sinceDate?: string) => number;
   totalDelta: () => number;
 }
 
@@ -228,9 +232,13 @@ export function DebtPaymentProvider({ children }: ProviderProps) {
             );
             return paid ? sum : sum + debt.monthlyPayment;
           }, 0),
-      balanceDelta: (accountName) =>
+      balanceDelta: (accountName, sinceDate) =>
         items
-          .filter((p) => p.accountName === accountName)
+          .filter(
+            (p) =>
+              p.accountName === accountName &&
+              (sinceDate ? p.paidAt > sinceDate : true),
+          )
           .reduce((sum, p) => {
             const debt = SEED_DEBTS.find((d) => d.name === p.debtName);
             return sum + (debt?.monthlyPayment ?? 0);

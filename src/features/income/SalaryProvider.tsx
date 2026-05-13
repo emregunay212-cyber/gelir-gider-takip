@@ -27,7 +27,11 @@ interface SalaryContextValue {
   getReceipt: (incomeName: string, monthKey: string) => SalaryReceipt | undefined;
   addReceipt: (receipt: Omit<SalaryReceipt, 'id'>) => void;
   removeReceipt: (incomeName: string, monthKey: string) => void;
-  balanceDelta: (accountName: string) => number;
+  /**
+   * @param sinceDate - ISO timestamp. Verilirse o tarihten SONRA (strict >)
+   * yapılan maaşları sayar. Override mantığı için kullanılır.
+   */
+  balanceDelta: (accountName: string, sinceDate?: string) => number;
   totalDelta: () => number;
 }
 
@@ -161,9 +165,14 @@ export function SalaryProvider({ children }: ProviderProps) {
       removeReceipt: (incomeName, monthKey) => {
         void remove(safeDocId(incomeName, monthKey));
       },
-      balanceDelta: (accountName) =>
+      balanceDelta: (accountName, sinceDate) =>
         items
-          .filter((r) => r.accountName === accountName && !r.preExisting)
+          .filter(
+            (r) =>
+              r.accountName === accountName &&
+              !r.preExisting &&
+              (sinceDate ? r.receivedAt > sinceDate : true),
+          )
           .reduce((sum, r) => sum + r.amount, 0),
       totalDelta: () =>
         items

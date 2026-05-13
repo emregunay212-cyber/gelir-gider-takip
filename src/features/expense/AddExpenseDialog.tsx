@@ -174,6 +174,7 @@ export function AddExpenseDialog({
         date,
         excludeFromDailyLimit,
         odometerKm: validKm,
+        updatedBy: current,
       });
       toast.success('Harcama güncellendi ✏️', {
         description: `${formatTRY(amount)} · ${spenderLabel} · ${catLabel}`,

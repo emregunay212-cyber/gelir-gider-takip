@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Trash2, Pencil, ChevronDown } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { useExpense, type ExpenseEntry } from './ExpenseProvider';
 import { AddExpenseDialog } from './AddExpenseDialog';
@@ -52,7 +53,7 @@ function formatTime(iso: string): string {
 }
 
 export function TodayExpensesList() {
-  const { todaysExpenses, removeExpense } = useExpense();
+  const { todaysExpenses, removeExpense, restoreExpense } = useExpense();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ExpenseEntry | null>(null);
 
@@ -186,6 +187,14 @@ export function TodayExpensesList() {
                         />
                       )}
                       {time && <DetailRow label="🕒 Saat" value={time} />}
+                      {expense.updatedBy && expense.updatedAt && (
+                        <DetailRow
+                          label="✏️ Son düzenleme"
+                          value={`${
+                            expense.updatedBy === 'emre' ? 'Emre' : 'Sıla'
+                          } · ${formatTime(expense.updatedAt)}`}
+                        />
+                      )}
                       <div className="flex justify-end gap-1 pt-1">
                         <button
                           type="button"
@@ -201,7 +210,16 @@ export function TodayExpensesList() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => removeExpense(expense.id)}
+                          onClick={() => {
+                            removeExpense(expense.id);
+                            toast.success('Harcama silindi', {
+                              action: {
+                                label: 'Geri al',
+                                onClick: () => restoreExpense(expense),
+                              },
+                              duration: 5000,
+                            });
+                          }}
                           aria-label="Harcamayı sil"
                           className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-[var(--color-danger)]"
                         >
